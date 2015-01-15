@@ -1,0 +1,34 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Object definition files
+*.d
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+bin/
+output/
+svfit/
+sync*/
+
+# Python
+__init__.py
+*.pyc
+
+# filelist folders
+jobs/
+PLOTS/
+*.root
+*.png
+*.pdf
+
+#backups
+*~
