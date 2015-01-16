@@ -49,16 +49,17 @@ class LightTreeProducer : public edm::EDAnalyzer
       virtual void analyze(const edm::Event&, const edm::EventSetup&);
       virtual void endJob() ;
 
-      edm::Service<TFileService> fs_;      
+      bool MinDRToCollection(reco::Candidate const* cand,std::vector<const reco::Candidate*>& coll, double cut);
 
       // ----------member data ---------------------------
+      edm::Service<TFileService> fs_;      
+
       edm::EDGetTokenT<reco::VertexCollection> vtxToken_;
       edm::EDGetTokenT<pat::MuonCollection> muonToken_;
       edm::EDGetTokenT<pat::ElectronCollection> electronToken_;
       edm::EDGetTokenT<pat::TauCollection> tauToken_;
       edm::EDGetTokenT<pat::PhotonCollection> photonToken_;
       edm::EDGetTokenT<pat::JetCollection> jetToken_;
-      edm::EDGetTokenT<pat::JetCollection> fatjetToken_;
       edm::EDGetTokenT<pat::METCollection> metToken_;
       edm::EDGetTokenT<edm::TriggerResults> triggerBits_;
       edm::EDGetTokenT<pat::TriggerObjectStandAloneCollection> triggerObjects_;
