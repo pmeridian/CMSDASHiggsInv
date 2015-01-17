@@ -26,6 +26,35 @@ bool LightTreeProducer::MinDRToCollection(reco::Candidate const* cand,std::vecto
   return true;
 }
 
+bool LightTreeProducer::pu_id_mva_loose(const pat::Jet& j) {
+  // Pt2030_Loose   = cms.vdouble(-0.80,-0.85,-0.84,-0.85),                                                                                                                    
+  // Pt3050_Loose   = cms.vdouble(-0.80,-0.74,-0.68,-0.77)                                                                                                                     
+  // #4 Eta Categories  0-2.5 2.5-2.75 2.75-3.0 3.0-5.0                                                                                                                        
+  double abs_eta = fabs(j.eta());
+  double pt = j.pt();
+  double pu_id_mva_value_ = j.userFloat("pileupJetId:fullDiscriminant");
+  if (pt > 20. && pt <= 30) {
+    if (abs_eta < 2.5) {
+      return (pu_id_mva_value_ > -0.80);
+    } else if (abs_eta < 2.75) {
+      return (pu_id_mva_value_ > -0.85);
+    } else if (abs_eta < 3.0) {
+      return (pu_id_mva_value_ > -0.84);
+    } else if (abs_eta < 5.0) {
+      return (pu_id_mva_value_ > -0.85);
+    } else return true;
+  } else if (pt > 30.) {
+    if (abs_eta < 2.5) {
+      return (pu_id_mva_value_ > -0.80);
+    } else if (abs_eta < 2.75) {
+      return (pu_id_mva_value_ > -0.74);
+    } else if (abs_eta < 3.0) {
+      return (pu_id_mva_value_ > -0.68);
+    } else if (abs_eta < 5.0) {
+      return (pu_id_mva_value_ > -0.77);
+    } else return true;
+  } else return true;
+}
 
 LightTreeProducer::LightTreeProducer(const edm::ParameterSet& iConfig):
   vtxToken_(consumes<reco::VertexCollection>(iConfig.getParameter<edm::InputTag>("vertices"))),
@@ -297,7 +326,7 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
   for (const pat::Muon &mu : *muons) {
     if (mu.pt() < 10 ) 
       continue;
-    if ( abs(mu.eta()) > 2.5 )
+    if ( fabs(mu.eta()) > 2.5 )
       continue;
 
     //VetoMuon Selection
@@ -323,7 +352,7 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
   for (const pat::Electron &el : *electrons) {
     if (el.pt()<10)
       continue;
-    if ( abs(el.eta()) > 2.5 )
+    if ( fabs(el.eta()) > 2.5 )
       continue;
 
     //Remove overlaps with muons    
@@ -349,7 +378,7 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
   for (const pat::Tau &tau : *taus) 
     {
       if (tau.pt() < 20) continue;
-      if (abs(tau.eta()) > 2.3) continue;
+      if (fabs(tau.eta()) > 2.3) continue;
       if (tau.tauID("decayModeFinding")<0.5)
 	continue;
       if (tau.tauID("byMediumCombinedIsolationDeltaBetaCorr3Hits")<0.5)
@@ -364,22 +393,54 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
 
   edm::Handle<pat::JetCollection> jets;
   iEvent.getByToken(jetToken_, jets);
-  int ijet = 0;
+  // int ijet = 0;
   for (const pat::Jet &j : *jets) {
     if (j.pt() < 20) continue;
-    printf("jet  with pt %5.1f (raw pt %5.1f), eta %+4.2f, btag CSV %.3f, CISV %.3f, pileup mva disc %+.2f\n",
-	   j.pt(), j.pt()*j.jecFactor("Uncorrected"), j.eta(), std::max(0.f,j.bDiscriminator("combinedSecondaryVertexBJetTags")), std::max(0.f,j.bDiscriminator("combinedInclusiveSecondaryVertexBJetTags")), j.userFloat("pileupJetId:fullDiscriminant"));
-    if ((++ijet) == 1) { // for the first jet, let's print the leading constituents
-      std::vector<reco::CandidatePtr> daus(j.daughterPtrVector());
-      std::sort(daus.begin(), daus.end(), [](const reco::CandidatePtr &p1, const reco::CandidatePtr &p2) { return p1->pt() > p2->pt(); }); // the joys of C++11
-      for (unsigned int i2 = 0, n = daus.size(); i2 < n && i2 <= 3; ++i2) {
-	const pat::PackedCandidate &cand = dynamic_cast<const pat::PackedCandidate &>(*daus[i2]);
-	printf("         constituent %3d: pt %6.2f, dz(pv) %+.3f, pdgId %+3d\n", i2,cand.pt(),cand.dz(PV.position()),cand.pdgId());
-      }
+    if (fabs(j.eta()) > 4.7) continue;
+
+    allJets.push_back(&j);
+    //Loose JetID
+    if (j.numberOfDaughters()<=1)
+      continue;
+    if (j.neutralHadronEnergyFraction()>0.99)
+      continue;
+    if (j.neutralEmEnergyFraction()>0.99)
+      continue;
+    if(!(j.chargedEmEnergyFraction()< 0.99 || fabs(j.eta()) >= 2.4))
+      continue;
+    if(!(j.chargedHadronEnergyFraction() > 0. || fabs(j.eta()) >= 2.4))
+      continue;
+    if(!(j.chargedMultiplicity() > 0 || fabs(j.eta()) >= 2.4))
+      continue;
+
+    //Remove overlaps with leptons
+    bool muOverlap=false;
+    bool eleOverlap=false;
+    bool tauOverlap=false;
+    BOOST_FOREACH(const pat::Muon* mu, vetomuons) {
+      if ( deltaR(j.p4(), mu->p4()) < 0.5) 
+	muOverlap=true;
     }
+    BOOST_FOREACH(const pat::Electron* ele, vetoelectrons) {
+      if ( deltaR(j.p4(), ele->p4()) < 0.5) 
+	eleOverlap=true;
+    }
+    BOOST_FOREACH(const pat::Tau* tau, seltaus) {
+      if ( deltaR(j.p4(), tau->p4()) < 0.5) 
+	eleOverlap=true;
+    }
+
+    if (muOverlap || eleOverlap || tauOverlap)
+      continue;
+
+    //PU JetID    
+    if ( ! pu_id_mva_loose(j) )
+      continue;
+
+    selJets.push_back(&j);
   }
 
-
+  printf("NJETS %d %d\n",int(allJets.size()),int(selJets.size()));
   
   edm::Handle<pat::METCollection> mets;
   iEvent.getByToken(metToken_, mets);

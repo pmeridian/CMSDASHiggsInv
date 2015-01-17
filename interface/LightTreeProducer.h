@@ -50,7 +50,7 @@ class LightTreeProducer : public edm::EDAnalyzer
       virtual void endJob() ;
 
       bool MinDRToCollection(reco::Candidate const* cand,std::vector<const reco::Candidate*>& coll, double cut);
-
+      bool pu_id_mva_loose(const pat::Jet& j);
       // ----------member data ---------------------------
       edm::Service<TFileService> fs_;      
 
