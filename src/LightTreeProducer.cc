@@ -664,7 +664,8 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
       met_ = met.pt();
       met_x_ = metvec.Px();
       met_y_ = metvec.Py();
-      met_significance_ = met.significance();
+      printf("MET SIG %3.1f\n",met.mEtSig());
+      met_significance_ = met.mEtSig();
       sumet_ = met.sumEt();
 
       // if(l1met.size()==1){
