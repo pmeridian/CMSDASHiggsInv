@@ -49,6 +49,17 @@ class LightTreeProducer : public edm::EDAnalyzer
       virtual void analyze(const edm::Event&, const edm::EventSetup&);
       virtual void endJob() ;
 
+
+      template<typename T>
+	struct RefGreaterByPt {
+	  typedef T first_argument_type;
+	  typedef T second_argument_type;
+	  bool operator()( const T*  t1, const T* t2 ) const {
+	    return t1->pt() > t2->pt();
+	  }
+	};
+
+
       bool MinDRToCollection(reco::Candidate const* cand,std::vector<const reco::Candidate*>& coll, double cut);
       bool pu_id_mva_loose(const pat::Jet& j);
       // ----------member data ---------------------------

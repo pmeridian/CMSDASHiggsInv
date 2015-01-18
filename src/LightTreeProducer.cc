@@ -312,8 +312,6 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
   std::vector<const pat::Jet*> selJets;
   std::vector<CompositeCandidate> dijet_vec;
 
-  //met
-  pat::MET const metnomuons;
 
 
   edm::Handle<reco::VertexCollection> vertices;
@@ -441,21 +439,26 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
   }
 
   printf("NJETS %d %d\n",int(allJets.size()),int(selJets.size()));
+
+  std::sort(vetomuons.begin(),vetomuons.end(),RefGreaterByPt<pat::Muon>());
+  std::sort(selmuons.begin(),selmuons.end(),RefGreaterByPt<pat::Muon>());
+  std::sort(vetoelectrons.begin(),vetoelectrons.end(),RefGreaterByPt<pat::Electron>());
+  std::sort(selelectrons.begin(),selelectrons.end(),RefGreaterByPt<pat::Electron>());
+  std::sort(seltaus.begin(),seltaus.end(),RefGreaterByPt<pat::Tau>());
+  std::sort(selJets.begin(),selJets.end(),RefGreaterByPt<pat::Jet>());
+  std::sort(allJets.begin(),allJets.end(),RefGreaterByPt<pat::Jet>());
   
   edm::Handle<pat::METCollection> mets;
   iEvent.getByToken(metToken_, mets);
   const pat::MET &met = mets->front();
-  printf("MET: pt %5.1f, phi %+4.2f, sumEt (%.1f). genMET %.1f. MET with JES up/down: %.1f/%.1f\n",
-	 met.pt(), met.phi(), met.sumEt(),
-	 met.genMET()->pt(), met.shiftedPt(pat::MET::JetEnUp), met.shiftedPt(pat::MET::JetEnDown));
-  
+
+  Candidate::LorentzVector metnomuons=met.p4();
+  BOOST_FOREACH(const pat::Muon* mu, selmuons) {
+    metnomuons+=mu->p4();
+  }
+  printf("MET: pt %5.1f, phi %+4.2f METnomuons: pt %5.1f, phi %+4.2f ",
+	 met.pt(), met.phi(), metnomuons.pt(), metnomuons.phi());
   printf("\n");
-
-
-  
-  //
-  // std::sort(alljets.begin(), alljets.end(), bind(&Candidate::pt, _1) > bind(&Candidate::pt, _2));
-  // std::sort(jets.begin(), jets.end(), bind(&Candidate::pt, _1) > bind(&Candidate::pt, _2));
   
   /*
   EventInfo const* eventInfo = event->GetPtr<EventInfo>("eventInfo");
