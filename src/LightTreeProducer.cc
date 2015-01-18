@@ -5,17 +5,23 @@
 #include "FWCore/Framework/interface/MakerMacros.h"
 
 #include "DataFormats/Candidate/interface/CompositeCandidate.h"
-
-
 #include "DataFormats/GsfTrackReco/interface/GsfTrack.h"
 #include "DataFormats/EgammaCandidates/interface/GsfElectron.h"
 #include "DataFormats/EgammaCandidates/interface/GsfElectronFwd.h"
 #include "DataFormats/EgammaCandidates/interface/ConversionFwd.h"
 #include "DataFormats/EgammaCandidates/interface/Conversion.h"
+#include "DataFormats/Math/interface/deltaR.h"
+#include "DataFormats/Math/interface/LorentzVector.h"
+#include "PhysicsTools/CandUtils/interface/AddFourMomenta.h"
+
+#include "Math/PtEtaPhiE4D.h"
+#include "Math/PtEtaPhiM4D.h"
+#include "Math/LorentzVector.h"
 
 #include <boost/foreach.hpp>
 
-#include "DataFormats/Math/interface/deltaR.h"
+#include <utility>
+
 using namespace edm;
 using namespace reco;
 
@@ -66,7 +72,8 @@ LightTreeProducer::LightTreeProducer(const edm::ParameterSet& iConfig):
   metToken_(consumes<pat::METCollection>(iConfig.getParameter<edm::InputTag>("mets"))),
   triggerBits_(consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("bits"))),
   triggerObjects_(consumes<pat::TriggerObjectStandAloneCollection>(iConfig.getParameter<edm::InputTag>("objects"))),
-  triggerPrescales_(consumes<pat::PackedTriggerPrescales>(iConfig.getParameter<edm::InputTag>("prescales")))
+  triggerPrescales_(consumes<pat::PackedTriggerPrescales>(iConfig.getParameter<edm::InputTag>("prescales"))),
+  prunedGenToken_(consumes<edm::View<reco::GenParticle> >(iConfig.getParameter<edm::InputTag>("pruned")))
 { 
   outputTree_ = 0;
   
@@ -310,7 +317,7 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
   std::vector<const Candidate*> const l1met;
   std::vector<const pat::Jet*> allJets;
   std::vector<const pat::Jet*> selJets;
-  std::vector<CompositeCandidate> dijet_vec;
+  std::vector<std::pair<const pat::Jet*,const pat::Jet*> > dijet_vec;
 
 
 
@@ -438,6 +445,15 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
     selJets.push_back(&j);
   }
 
+  //Make dijet candidates
+  std::vector<const pat::Jet*>::const_iterator ibegin=selJets.begin(),
+    iend = selJets.end(), ijet = ibegin, jjet = ijet + 1;
+  for ( ; ijet != iend - 1; ++ijet ) {
+    for ( ; jjet != iend; ++jjet ) {
+      dijet_vec.push_back( pair<const pat::Jet*, const pat::Jet*>(*ijet,*jjet) );
+    }
+  }
+
   printf("NJETS %d %d\n",int(allJets.size()),int(selJets.size()));
 
   std::sort(vetomuons.begin(),vetomuons.end(),RefGreaterByPt<pat::Muon>());
@@ -456,17 +472,16 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
   BOOST_FOREACH(const pat::Muon* mu, selmuons) {
     metnomuons+=mu->p4();
   }
-  printf("MET: pt %5.1f, phi %+4.2f METnomuons: pt %5.1f, phi %+4.2f ",
-	 met.pt(), met.phi(), metnomuons.pt(), metnomuons.phi());
-  printf("\n");
   
-  /*
-  EventInfo const* eventInfo = event->GetPtr<EventInfo>("eventInfo");
-  run_= eventInfo->run();
-  lumi_= eventInfo->lumi_block();
-  event_= eventInfo->event();
-  n_vertices_=eventInfo->good_vertices();
-  
+  bool is_data_=iEvent.isRealData();
+
+  run_= iEvent.id().run();
+  lumi_= iEvent.luminosityBlock();
+  event_= iEvent.id().event();
+
+  n_vertices_=int(vertices->size());
+
+  /*  
   if (is_data_) {
     
     TriggerPathPtrVec const& triggerPathPtrVec =
@@ -514,27 +529,24 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
     }
     puweight_up_scale_=pileupwtup/pileupwt;
     puweight_down_scale_=pileupwtdown/pileupwt;
+  */
 
-
-    if(!ignoreLeptons_) nvetomuons_=vetomuons.size();
-    else nvetomuons_=0;
+    nvetomuons_=vetomuons.size();
     nselmuons_=selmuons.size();
     nvetoelectrons_=vetoelectrons.size();
     nselelectrons_=selelectrons.size();
     ntaus_=seltaus.size();
 
-    std::sort(selmuons.begin(), selmuons.end(), bind(&Candidate::pt, _1) > bind(&Candidate::pt, _2));
-    std::sort(selelectrons.begin(), selelectrons.end(), bind(&Candidate::pt, _1) > bind(&Candidate::pt, _2));
 
     //Get MT
     if(nselmuons_==1&&nselelectrons_==0&&ntaus_==0){//If 1 muon and no electrons use muon to make mt
-      lep_mt_=sqrt(2*selmuons[0]->pt()*met->pt()*(1-cos(selmuons[0]->phi()-met->phi())));
+      lep_mt_=sqrt(2*selmuons[0]->pt()*met.pt()*(1-cos(selmuons[0]->phi()-met.phi())));
     }
     else if(nselelectrons_==1&&nselmuons_==0&&ntaus_==0){//If 1 electron and no muons use electron to make mt
-      lep_mt_=sqrt(2*selelectrons[0]->pt()*met->pt()*(1-cos(selelectrons[0]->phi()-met->phi())));      
+      lep_mt_=sqrt(2*selelectrons[0]->pt()*met.pt()*(1-cos(selelectrons[0]->phi()-met.phi())));      
     }
     else if(ntaus_==1&&nselelectrons_==0&&nselmuons_==0){//If 1 electron and no muons use electron to make mt
-      lep_mt_=sqrt(2*seltaus[0]->pt()*met->pt()*(1-cos(seltaus[0]->phi()-met->phi())));      
+      lep_mt_=sqrt(2*seltaus[0]->pt()*met.pt()*(1-cos(seltaus[0]->phi()-met.phi())));      
     }
     else{//If otherwise set mt to dummy value
       lep_mt_=-2;
@@ -583,53 +595,57 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
     }
 
     if(nselmuons_==2){
-      m_mumu_=((selmuons.at(0)->vector())+(selmuons.at(1)->vector())).M();
+      m_mumu_=((selmuons.at(0)->p4())+(selmuons.at(1)->p4())).M();
     }
     else m_mumu_=-1;
+
 
     //Get gen z mass
     int ngenmuplus=0;
     int ngenmuminus=0;
     m_mumu_gen_=-1;
     if(!is_data_){
-      std::vector<GenParticle*> const& parts = event->GetPtrVec<GenParticle>("genParticles");
-      GenParticle* lepplus = 0;
-      GenParticle* lepminus = 0;
-      
-      for (unsigned i = 0; i < parts.size(); ++i) {
-	if (parts[i]->status() != 3) continue;
-	
-	int id = parts[i]->pdgid();
+      Handle<edm::View<reco::GenParticle> > pruned;
+      iEvent.getByToken(prunedGenToken_,pruned);
+      const GenParticle* lepplus = 0;
+      const GenParticle* lepminus = 0;
 
-	if (id == static_cast<int>(13)) {
-	  lepminus = parts[i];
+      for (const reco::GenParticle &part : *pruned) {      
+	// if (part.status() != 1) continue;
+	
+	int id = part.pdgId();
+
+	if (id == static_cast<int>(13) && ngenmuminus==0) {
+	  lepminus = &part;
 	  ngenmuminus++;
 	}
-	if (id == static_cast<int>(-13)) {
-	lepplus = parts[i];
+	if (id == static_cast<int>(-13) && ngenmuplus==0) {
+	lepplus = &part;
 	ngenmuplus++;
 	}  
       }//loop on genparticles                                                                                                                                  
       
       if (ngenmuminus==1&&ngenmuplus==1) {
-	m_mumu_gen_ = (lepplus->vector()+lepminus->vector()).M();
+	m_mumu_gen_ = (lepplus->p4()+lepminus->p4()).M();
       }
     }
 
     if (dijet_vec.size() != 0) {
       
-      CompositeCandidate const* dijet = dijet_vec.at(0);
+      std::pair<const pat::Jet*,const pat::Jet*> dijet = dijet_vec.at(0);
 
-      Candidate const* jet1 = dijet->GetCandidate("jet1");
-      Candidate const* jet2 = dijet->GetCandidate("jet2");
-      ROOT::Math::PtEtaPhiEVector jet1vec = jet1->vector();
-      ROOT::Math::PtEtaPhiEVector jet2vec = jet2->vector();
-      ROOT::Math::PtEtaPhiEVector metvec = met->vector();
-      ROOT::Math::PtEtaPhiEVector metnomuvec = metnomuons->vector();
+      pat::Jet const* jet1 = dijet.first;
+      pat::Jet const* jet2 = dijet.second;
 
-      weight_nolep_ = wt;
-      total_weight_lepveto_ =wt*vetowt;
-      total_weight_leptight_=wt*tightwt;
+      Candidate::LorentzVector jet1vec = jet1->p4();
+      Candidate::LorentzVector jet2vec = jet2->p4();
+      Candidate::LorentzVector dijetvec = jet1vec+jet2vec;
+      Candidate::LorentzVector metvec = met.p4();
+      Candidate::LorentzVector metnomuvec = metnomuons;
+
+      // weight_nolep_ = wt;
+      // total_weight_lepveto_ =wt*vetowt;
+      // total_weight_leptight_=wt*tightwt;
       
       jet1_pt_ = jet1->pt();
       jet2_pt_ = jet2->pt();
@@ -639,32 +655,36 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
       jet2_eta_ = jet2->eta();
       jet1_phi_ = jet1->phi();
       jet2_phi_ = jet2->phi();
-      dijet_M_ = dijet->M();
+      jet1_csv_=jet1->bDiscriminator("combinedInclusiveSecondaryVertexV2BJetTags");
+      jet2_csv_=jet2->bDiscriminator("combinedInclusiveSecondaryVertexV2BJetTags");
+      dijet_M_ = dijetvec.M();
       dijet_deta_ = fabs(jet1->eta() - jet2->eta());
       dijet_sumeta_ = jet1->eta() + jet2->eta();
       dijet_dphi_ = fabs(ROOT::Math::VectorUtil::DeltaPhi(jet1vec,jet2vec));
-      met_ = met->pt();
+      met_ = met.pt();
       met_x_ = metvec.Px();
       met_y_ = metvec.Py();
-      met_significance_ = met->et_sig();
-      sumet_ = met->sum_et();
-      if(l1met.size()==1){
-	l1met_ = l1met[0]->energy();
-      }
-      metnomuons_ = metnomuons->pt();
+      met_significance_ = met.significance();
+      sumet_ = met.sumEt();
+
+      // if(l1met.size()==1){
+      // 	l1met_ = l1met[0]->energy();
+      // }
+
+      metnomuons_ = metnomuons.pt();
       metnomu_x_ = metnomuvec.Px();
       metnomu_y_ = metnomuvec.Py();
       metnomu_significance_ = met_significance_/met_*metnomuons_;
 
       double ht =0;
       double ht30 =0;
-      ROOT::Math::PtEtaPhiEVector mhtVec(0,0,0,0);
-      for(unsigned i =0; i<jets.size();++i){
-	ht+=jets[i]->vector().Et();
-	if(jets[i]->pt()>30)	ht30+=jets[i]->vector().Et();
-	mhtVec += jets[i]->vector();
+      Candidate::LorentzVector mhtVec(0,0,0,0);
+      for(unsigned i =0; i<selJets.size();++i){
+	ht+=selJets[i]->p4().Et();
+	if(selJets[i]->pt()>30)	ht30+=selJets[i]->p4().Et();
+	mhtVec += selJets[i]->p4();
       }
-      ROOT::Math::PtEtaPhiEVector unclVec = mhtVec + metvec;
+      Candidate::LorentzVector unclVec = mhtVec + metvec;
 
       ht_ = ht;
       ht30_=ht30;
@@ -684,12 +704,12 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
       jetmetnomu_mindphi_ = std::min(nomudphi1,nomudphi2);
       
 
-      dijetmet_scalarSum_pt_ = jet1->pt()+jet2->pt()+met->pt();
+      dijetmet_scalarSum_pt_ = jet1->pt()+jet2->pt()+met.pt();
       dijetmet_vectorialSum_pt_ = (jet1vec+jet2vec+metvec).Pt();
-      dijetmet_ptfraction_ = dijet->pt()/(dijet->pt()+met->pt());
-      dijetmetnomu_scalarSum_pt_ = jet1->pt()+jet2->pt()+metnomuons->pt();
+      dijetmet_ptfraction_ = dijetvec.pt()/(dijetvec.pt()+met.pt());
+      dijetmetnomu_scalarSum_pt_ = jet1->pt()+jet2->pt()+metnomuons.pt();
       dijetmetnomu_vectorialSum_pt_ = (jet1vec+jet2vec+metnomuvec).Pt();
-      dijetmetnomu_ptfraction_ = dijet->pt()/(dijet->pt()+metnomuons->pt());
+      dijetmetnomu_ptfraction_ = dijetvec.pt()/(dijetvec.pt()+metnomuons.pt());
 
       jet1met_scalarprod_ = (jet1vec.Px()*met_x_+jet1vec.Py()*met_y_)/met_;
       jet2met_scalarprod_ = (jet2vec.Px()*met_x_+jet2vec.Py()*met_y_)/met_;
@@ -712,52 +732,37 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
       cjvjetpt_=-1;
       alljetsmetnomu_mindphi_=jetmetnomu_mindphi_;
       alljetsmet_mindphi_=jetmet_mindphi_;
-      if (jets.size() > 2) {
-	for (unsigned i = 0; i < jets.size(); ++i) {
-	  if(jets[i]->id()==jet1->id()){
-	    jet1_csv_=jets[i]->GetBDiscriminator("combinedSecondaryVertexBJetTags");
-	  }
-	  if(jets[i]->id()==jet2->id()){
-	    jet2_csv_=jets[i]->GetBDiscriminator("combinedSecondaryVertexBJetTags");	  
-	  }
-
-	  bool isInCentralGap = fabs(jets[i]->eta())<4.7 && jets[i]->eta() > eta_low && jets[i]->eta() < eta_high;
-	  double tmppt=jets[i]->pt();
+      if (selJets.size() > 2) {
+	for (unsigned i = 2; i < selJets.size(); ++i) {
+	  bool isInCentralGap = fabs(selJets[i]->eta())<4.7 && selJets[i]->eta() > eta_low && selJets[i]->eta() < eta_high;
+	  double tmppt=selJets[i]->pt();
 	  if(isInCentralGap&&(tmppt>cjvjetpt_)){
 	    cjvjetpt_=tmppt;
 	  }
-	  if(tmppt>jet3_pt_&&(jets[i]->id()!=jet1->id())&&(jets[i]->id()!=jet2->id())){
-	    jet3_csv_=jets[i]->GetBDiscriminator("combinedSecondaryVertexBJetTags");
+	  if(tmppt>jet3_pt_){
+	    jet3_csv_=selJets[i]->bDiscriminator("combinedInclusiveSecondaryVertexV2BJetTags");
 	    jet3_pt_=tmppt;
-	    jet3_eta_=jets[i]->eta();
-	    jet3_phi_=jets[i]->phi();
+	    jet3_eta_=selJets[i]->eta();
+	    jet3_phi_=selJets[i]->phi();
 	  }
-	  if (jets[i]->pt() > 30.0 && isInCentralGap){
+	  if (selJets[i]->pt() > 30.0 && isInCentralGap){
 	    ++n_jets_cjv_30_;
 	  }
-	  if ( ((jets[i]->eta()<2.4 && jets[i]->pt() > 20.0) ||
-		(jets[i]->eta()>=2.4 && jets[i]->pt() > 30.0)) && 
+	  if ( ((selJets[i]->eta()<2.4 && selJets[i]->pt() > 20.0) ||
+		(selJets[i]->eta()>=2.4 && selJets[i]->pt() > 30.0)) && 
 	       isInCentralGap){
 	    ++n_jets_cjv_20EB_30EE_;
 	  }
-	  if(jets[i]->pt()>30.0){
-	    double thisjetmetnomudphi = fabs(ROOT::Math::VectorUtil::DeltaPhi(jets[i]->vector(),metnomuvec));
+	  if(selJets[i]->pt()>30.0){
+	    double thisjetmetnomudphi = fabs(ROOT::Math::VectorUtil::DeltaPhi(selJets[i]->p4(),metnomuvec));
 	    if(thisjetmetnomudphi<alljetsmetnomu_mindphi_)alljetsmetnomu_mindphi_=thisjetmetnomudphi;
-	    double thisjetmetdphi = fabs(ROOT::Math::VectorUtil::DeltaPhi(jets[i]->vector(),metvec));
+	    double thisjetmetdphi = fabs(ROOT::Math::VectorUtil::DeltaPhi(selJets[i]->p4(),metvec));
 	    if(thisjetmetdphi<alljetsmet_mindphi_)alljetsmet_mindphi_=thisjetmetdphi;
 	  }
 	}
       }
-      else{
-	for (unsigned i = 0; i < jets.size(); ++i) {
-	  if(jets[i]->id()==jet1->id()){
-	    jet1_csv_=jets[i]->GetBDiscriminator("combinedSecondaryVertexBJetTags");
-	  }
-	  if(jets[i]->id()==jet2->id()){
-	    jet2_csv_=jets[i]->GetBDiscriminator("combinedSecondaryVertexBJetTags");	  
-	  }
-	}
-      }
+    }
+      /*
       static unsigned processed = 0;
       //IF PASSES CUTS FILL TREE
       if(!ignoreLeptons_){

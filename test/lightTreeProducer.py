@@ -26,6 +26,7 @@ process.lightTree = cms.EDAnalyzer("LightTreeProducer",
                                    bits = cms.InputTag("TriggerResults","","HLT"),
                                    prescales = cms.InputTag("patTrigger"),
                                    objects = cms.InputTag("selectedPatTrigger"),
+                                   pruned = cms.InputTag("prunedGenParticles")
 )
 
 
