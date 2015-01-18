@@ -22,6 +22,8 @@
 
 #include <utility>
 
+#define DEBUG
+
 using namespace edm;
 using namespace reco;
 
@@ -292,6 +294,10 @@ void LightTreeProducer::beginJob()
 void
 LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
+#ifdef DEBUG
+  printf ("===> START EVENT\n");
+#endif
+
   edm::Handle<edm::TriggerResults> triggerBits;
   edm::Handle<pat::TriggerObjectStandAloneCollection> triggerObjects;
   edm::Handle<pat::PackedTriggerPrescales> triggerPrescales;
@@ -443,26 +449,10 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
     selJets.push_back(&j);
   }
 
-  //Make dijet candidates
-  std::vector<const pat::Jet*>::const_iterator ibegin=selJets.begin(),
-    iend = selJets.end(), ijet = ibegin, jjet = ijet + 1;
-  for ( ; ijet != iend - 1; ++ijet ) {
-    for ( ; jjet != iend; ++jjet ) {
-      dijet_vec.push_back( pair<const pat::Jet*, const pat::Jet*>(*ijet,*jjet) );
-    }
-  }
 #ifdef DEBUG
   printf("NJETS %d %d\n",int(allJets.size()),int(selJets.size()));
 #endif
 
-  std::sort(vetomuons.begin(),vetomuons.end(),RefGreaterByPt<pat::Muon>());
-  std::sort(selmuons.begin(),selmuons.end(),RefGreaterByPt<pat::Muon>());
-  std::sort(vetoelectrons.begin(),vetoelectrons.end(),RefGreaterByPt<pat::Electron>());
-  std::sort(selelectrons.begin(),selelectrons.end(),RefGreaterByPt<pat::Electron>());
-  std::sort(seltaus.begin(),seltaus.end(),RefGreaterByPt<pat::Tau>());
-  std::sort(selJets.begin(),selJets.end(),RefGreaterByPt<pat::Jet>());
-  std::sort(allJets.begin(),allJets.end(),RefGreaterByPt<pat::Jet>());
-  
   edm::Handle<pat::METCollection> mets;
   iEvent.getByToken(metToken_, mets);
   const pat::MET &met = mets->front();
@@ -475,6 +465,28 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
   edm::Handle<std::vector<l1extra::L1EtMissParticle>> l1MetExtra;
   iEvent.getByToken(l1MetToken_, l1MetExtra);
 
+  //Sort objects by Pt
+  std::sort(vetomuons.begin(),vetomuons.end(),RefGreaterByPt<pat::Muon>());
+  std::sort(selmuons.begin(),selmuons.end(),RefGreaterByPt<pat::Muon>());
+  std::sort(vetoelectrons.begin(),vetoelectrons.end(),RefGreaterByPt<pat::Electron>());
+  std::sort(selelectrons.begin(),selelectrons.end(),RefGreaterByPt<pat::Electron>());
+  std::sort(seltaus.begin(),seltaus.end(),RefGreaterByPt<pat::Tau>());
+  std::sort(selJets.begin(),selJets.end(),RefGreaterByPt<pat::Jet>());
+  std::sort(allJets.begin(),allJets.end(),RefGreaterByPt<pat::Jet>());
+
+  //Make dijet candidates
+  if (selJets.size()>1)
+    {
+      std::vector<const pat::Jet*>::const_iterator ibegin=selJets.begin(),
+	iend = selJets.end(), ijet = ibegin, jjet = ijet + 1;
+      for ( ; ijet != iend - 1; ++ijet ) {
+	for ( ; jjet != iend; ++jjet ) {
+	  dijet_vec.push_back( pair<const pat::Jet*, const pat::Jet*>(*ijet,*jjet) );
+	}
+      }
+    }
+
+  //Now filling the tree
   bool is_data_=iEvent.isRealData();
 
   run_= iEvent.id().run();
