@@ -73,8 +73,11 @@ LightTreeProducer::LightTreeProducer(const edm::ParameterSet& iConfig):
   triggerBits_(consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("bits"))),
   triggerObjects_(consumes<pat::TriggerObjectStandAloneCollection>(iConfig.getParameter<edm::InputTag>("objects"))),
   triggerPrescales_(consumes<pat::PackedTriggerPrescales>(iConfig.getParameter<edm::InputTag>("prescales"))),
-  prunedGenToken_(consumes<edm::View<reco::GenParticle> >(iConfig.getParameter<edm::InputTag>("pruned")))
+  prunedGenToken_(consumes<edm::View<reco::GenParticle> >(iConfig.getParameter<edm::InputTag>("pruned"))),
+  l1MetToken_(consumes<std::vector<l1extra::L1EtMissParticle>>(iConfig.getParameter<edm::InputTag>("l1met")))
 { 
+  hltSkim_ =iConfig.getParameter<int>("hltSkimming");
+
   outputTree_ = 0;
   
   run_=-1;
@@ -151,6 +154,7 @@ LightTreeProducer::LightTreeProducer(const edm::ParameterSet& iConfig):
   nvetoelectrons_=0;
   nselelectrons_=0;
   ntaus_=0;
+  njets_=0;
   m_mumu_=-1;
   m_mumu_gen_=-1;
   mu1_pt_=-1;
@@ -265,6 +269,7 @@ void LightTreeProducer::beginJob()
   outputTree_->Branch("nvetoelectrons",&nvetoelectrons_);
   outputTree_->Branch("nselelectrons",&nselelectrons_);
   outputTree_->Branch("ntaus",&ntaus_);
+  outputTree_->Branch("njets",&njets_);
   outputTree_->Branch("m_mumu",&m_mumu_);
   outputTree_->Branch("m_mumu_gen",&m_mumu_gen_);
   outputTree_->Branch("mu1_pt",&mu1_pt_);
@@ -295,14 +300,6 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
   iEvent.getByToken(triggerObjects_, triggerObjects);
   iEvent.getByToken(triggerPrescales_, triggerPrescales);
 
-  const edm::TriggerNames &names = iEvent.triggerNames(*triggerBits);
-  std::cout << "\n === TRIGGER PATHS === " << std::endl;
-  for (unsigned int i = 0, n = triggerBits->size(); i < n; ++i) {
-    std::cout << "Trigger " << names.triggerName(i) << 
-      ", prescale " << triggerPrescales->getPrescaleForIndex(i) <<
-      ": " << (triggerBits->accept(i) ? "PASS" : "fail (or not run)") 
-	      << std::endl;
-  }
 
   //objects collections
 
@@ -314,12 +311,9 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
   std::vector<const pat::Tau*> seltaus;
   
   //jets
-  std::vector<const Candidate*> const l1met;
   std::vector<const pat::Jet*> allJets;
   std::vector<const pat::Jet*> selJets;
   std::vector<std::pair<const pat::Jet*,const pat::Jet*> > dijet_vec;
-
-
 
   edm::Handle<reco::VertexCollection> vertices;
   iEvent.getByToken(vtxToken_, vertices);
@@ -350,8 +344,9 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
       continue;
     selmuons.push_back(&mu);
   }
+#ifdef DEBUG
   printf("NMUONS %d %d\n",int(selmuons.size()),int(vetomuons.size()));
-
+#endif
   edm::Handle<pat::ElectronCollection> electrons;
   iEvent.getByToken(electronToken_, electrons);
   for (const pat::Electron &el : *electrons) {
@@ -375,8 +370,9 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
     if(el.electronID("cutBasedElectronID-CSA14-PU20bx25-V0-standalone-medium")>0.5)
       selelectrons.push_back(&el);
   }
+#ifdef DEBUG
   printf("NELE %d %d\n",int(selelectrons.size()),int(vetoelectrons.size()));
-
+#endif
 
   edm::Handle<pat::TauCollection> taus;
   iEvent.getByToken(tauToken_, taus);
@@ -394,7 +390,9 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
 	continue;
       seltaus.push_back(&tau);
     }
+#ifdef DEBUG
   printf("NTAU %d\n",int(seltaus.size()));
+#endif
 
   edm::Handle<pat::JetCollection> jets;
   iEvent.getByToken(jetToken_, jets);
@@ -453,8 +451,9 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
       dijet_vec.push_back( pair<const pat::Jet*, const pat::Jet*>(*ijet,*jjet) );
     }
   }
-
+#ifdef DEBUG
   printf("NJETS %d %d\n",int(allJets.size()),int(selJets.size()));
+#endif
 
   std::sort(vetomuons.begin(),vetomuons.end(),RefGreaterByPt<pat::Muon>());
   std::sort(selmuons.begin(),selmuons.end(),RefGreaterByPt<pat::Muon>());
@@ -472,7 +471,10 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
   BOOST_FOREACH(const pat::Muon* mu, selmuons) {
     metnomuons+=mu->p4();
   }
-  
+
+  edm::Handle<std::vector<l1extra::L1EtMissParticle>> l1MetExtra;
+  iEvent.getByToken(l1MetToken_, l1MetExtra);
+
   bool is_data_=iEvent.isRealData();
 
   run_= iEvent.id().run();
@@ -481,329 +483,258 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
 
   n_vertices_=int(vertices->size());
 
-  /*  
-  if (is_data_) {
-    
-    TriggerPathPtrVec const& triggerPathPtrVec =
-      event->GetPtrVec<TriggerPath>("triggerPathPtrVec","triggerPaths");
-    //EventInfo const* eventInfo = event->GetPtr<EventInfo>("eventInfo"); //Can be used in future, but commented out to remove compiler warnings      
-    //unsigned run = eventInfo->run(); //Can be used in future, but commented out to remove compiler warnings                                         
-    passtrigger_=-1;
-    passparkedtrigger1_=-1;
-    passparkedtrigger2_=-1;
-    for (unsigned i = 0; i < triggerPathPtrVec.size(); ++i) {
-      std::string name = triggerPathPtrVec[i]->name();
-      triggerPathPtrVec[i]->prescale();
-      if (name.find(trigger_path_) != name.npos) passtrigger_ = 1;
-      if (name.find("HLT_DiJet35_MJJ700_AllJets_DEta3p5_VBF") != name.npos) passparkedtrigger1_ = 1;
-      if (name.find("HLT_DiJet30_MJJ700_AllJets_DEta3p5_VBF") != name.npos) passparkedtrigger2_ = 1;
+  const edm::TriggerNames &names = iEvent.triggerNames(*triggerBits);
+  passtrigger_=-1;
+  passparkedtrigger1_=-1;
+  passparkedtrigger2_=-1;
+  for (unsigned int i = 0, n = triggerBits->size(); i < n; ++i) 
+    {
+      if (names.triggerName(i).find("HLT_PFMET170_NoiseCleaned") != names.triggerName(i).npos )
+	if (triggerBits->accept(i)) 
+	  passtrigger_ = 1;
     }
-    if(dotrigskim_){
-	  if(!(passtrigger_==1||passparkedtrigger1_==1||passparkedtrigger2_==1)){
-	    return 1;
-	  }
-	}
-      }
-      //for MC                                                                                                                                       
-      else {
-	passtrigger_=-1;
-	passparkedtrigger1_=-1;
-	passparkedtrigger2_=-1;
-	std::vector<TriggerObject *> const& objs = event->GetPtrVec<TriggerObject>(trig_obj_label_);
-	if (objs.size() > 0) passtrigger_=1;
-      } // do obj match                                                                            
+      
+  if (hltSkim_)
+    if (passtrigger_<0.5)
+      return;
 
-
-    double wt = eventInfo->total_weight();
-    double vetowt=1;
-    double tightwt=1;
-    double pileupwt=1;
-    double pileupwtup=1;
-    double pileupwtdown=1;
-    if(!is_data_){
-      vetowt= eventInfo->weight("idisoVeto");
-      tightwt = eventInfo->weight("idisoTight");
-      pileupwt=eventInfo->weight("pileup");
-      pileupwtup=eventInfo->weight("pileup_up");
-      pileupwtdown=eventInfo->weight("pileup_down");
-    }
-    puweight_up_scale_=pileupwtup/pileupwt;
-    puweight_down_scale_=pileupwtdown/pileupwt;
-  */
-
-    nvetomuons_=vetomuons.size();
-    nselmuons_=selmuons.size();
-    nvetoelectrons_=vetoelectrons.size();
-    nselelectrons_=selelectrons.size();
-    ntaus_=seltaus.size();
-
-
-    //Get MT
-    if(nselmuons_==1&&nselelectrons_==0&&ntaus_==0){//If 1 muon and no electrons use muon to make mt
-      lep_mt_=sqrt(2*selmuons[0]->pt()*met.pt()*(1-cos(selmuons[0]->phi()-met.phi())));
-    }
-    else if(nselelectrons_==1&&nselmuons_==0&&ntaus_==0){//If 1 electron and no muons use electron to make mt
-      lep_mt_=sqrt(2*selelectrons[0]->pt()*met.pt()*(1-cos(selelectrons[0]->phi()-met.phi())));      
-    }
-    else if(ntaus_==1&&nselelectrons_==0&&nselmuons_==0){//If 1 electron and no muons use electron to make mt
-      lep_mt_=sqrt(2*seltaus[0]->pt()*met.pt()*(1-cos(seltaus[0]->phi()-met.phi())));      
-    }
-    else{//If otherwise set mt to dummy value
-      lep_mt_=-2;
-    }
-
-    if(nselmuons_>=1){
-      mu1_pt_=selmuons[0]->pt();
-      mu1_eta_=selmuons[0]->eta();
-      mu1_phi_=selmuons[0]->phi();
-      if(nselmuons_>=2){
-	mu2_pt_=selmuons[1]->pt();
-	mu2_eta_=selmuons[1]->eta();
-	mu2_phi_=selmuons[1]->phi();
-      }
-      else{
-	mu2_pt_=-1;
-	mu2_eta_=9999999;
-	mu2_phi_=9999999;
-      }
+  nvetomuons_=vetomuons.size();
+  nselmuons_=selmuons.size();
+  nvetoelectrons_=vetoelectrons.size();
+  nselelectrons_=selelectrons.size();
+  ntaus_=seltaus.size();
+  njets_=selJets.size();
+  
+  //Get MT
+  if(nselmuons_==1&&nselelectrons_==0&&ntaus_==0){//If 1 muon and no electrons use muon to make mt
+    lep_mt_=sqrt(2*selmuons[0]->pt()*met.pt()*(1-cos(selmuons[0]->phi()-met.phi())));
+  }
+  else if(nselelectrons_==1&&nselmuons_==0&&ntaus_==0){//If 1 electron and no muons use electron to make mt
+    lep_mt_=sqrt(2*selelectrons[0]->pt()*met.pt()*(1-cos(selelectrons[0]->phi()-met.phi())));      
+  }
+  else if(ntaus_==1&&nselelectrons_==0&&nselmuons_==0){//If 1 electron and no muons use electron to make mt
+    lep_mt_=sqrt(2*seltaus[0]->pt()*met.pt()*(1-cos(seltaus[0]->phi()-met.phi())));      
+  }
+  else{//If otherwise set mt to dummy value
+    lep_mt_=-2;
+  }
+  
+  if(nselmuons_>=1){
+    mu1_pt_=selmuons[0]->pt();
+    mu1_eta_=selmuons[0]->eta();
+    mu1_phi_=selmuons[0]->phi();
+    if(nselmuons_>=2){
+      mu2_pt_=selmuons[1]->pt();
+      mu2_eta_=selmuons[1]->eta();
+      mu2_phi_=selmuons[1]->phi();
     }
     else{
-      mu1_pt_=-1;
-      mu1_eta_=9999999;
-      mu1_phi_=9999999;
+      mu2_pt_=-1;
+      mu2_eta_=9999999;
+      mu2_phi_=9999999;
     }
-    if(nselelectrons_>=1){
-      ele1_pt_=selelectrons[0]->pt();
-      ele1_eta_=selelectrons[0]->eta();
-      ele1_phi_=selelectrons[0]->phi();
-    }
-    else{
-      ele1_pt_=-1;
-      ele1_eta_=9999999;
-      ele1_phi_=9999999;
-    }
+  }
+  else{
+    mu1_pt_=-1;
+    mu1_eta_=9999999;
+    mu1_phi_=9999999;
+  }
+  if(nselelectrons_>=1){
+    ele1_pt_=selelectrons[0]->pt();
+    ele1_eta_=selelectrons[0]->eta();
+    ele1_phi_=selelectrons[0]->phi();
+  }
+  else{
+    ele1_pt_=-1;
+    ele1_eta_=9999999;
+    ele1_phi_=9999999;
+  }
+  
+  if(ntaus_>=1){
+    tau1_pt_=seltaus[0]->pt();
+    tau1_eta_=seltaus[0]->eta();
+    tau1_phi_=seltaus[0]->phi();
+  }
+  else{
+    tau1_pt_=-1;
+    tau1_eta_=9999999;
+    tau1_phi_=9999999;
+  }
+  
+  if(nselmuons_==2){
+    m_mumu_=((selmuons.at(0)->p4())+(selmuons.at(1)->p4())).M();
+  }
+  else m_mumu_=-1;
+  
+  
+  //Get gen z mass
+  int ngenmuplus=0;
+  int ngenmuminus=0;
+  m_mumu_gen_=-1;
+  if(!is_data_){
+    Handle<edm::View<reco::GenParticle> > pruned;
+    iEvent.getByToken(prunedGenToken_,pruned);
+    const GenParticle* lepplus = 0;
+    const GenParticle* lepminus = 0;
 
-    if(ntaus_>=1){
-      tau1_pt_=seltaus[0]->pt();
-      tau1_eta_=seltaus[0]->eta();
-      tau1_phi_=seltaus[0]->phi();
-    }
-    else{
-      tau1_pt_=-1;
-      tau1_eta_=9999999;
-      tau1_phi_=9999999;
-    }
-
-    if(nselmuons_==2){
-      m_mumu_=((selmuons.at(0)->p4())+(selmuons.at(1)->p4())).M();
-    }
-    else m_mumu_=-1;
-
-
-    //Get gen z mass
-    int ngenmuplus=0;
-    int ngenmuminus=0;
-    m_mumu_gen_=-1;
-    if(!is_data_){
-      Handle<edm::View<reco::GenParticle> > pruned;
-      iEvent.getByToken(prunedGenToken_,pruned);
-      const GenParticle* lepplus = 0;
-      const GenParticle* lepminus = 0;
-
-      for (const reco::GenParticle &part : *pruned) {      
-	// if (part.status() != 1) continue;
+    for (const reco::GenParticle &part : *pruned) {      
+      // if (part.status() != 1) continue;
 	
-	int id = part.pdgId();
+      int id = part.pdgId();
 
-	if (id == static_cast<int>(13) && ngenmuminus==0) {
-	  lepminus = &part;
-	  ngenmuminus++;
-	}
-	if (id == static_cast<int>(-13) && ngenmuplus==0) {
+      if (id == static_cast<int>(13) && ngenmuminus==0) {
+	lepminus = &part;
+	ngenmuminus++;
+      }
+      if (id == static_cast<int>(-13) && ngenmuplus==0) {
 	lepplus = &part;
 	ngenmuplus++;
-	}  
-      }//loop on genparticles                                                                                                                                  
+      }  
+    }//loop on genparticles                                                                                                                                  
       
-      if (ngenmuminus==1&&ngenmuplus==1) {
-	m_mumu_gen_ = (lepplus->p4()+lepminus->p4()).M();
-      }
+    if (ngenmuminus==1&&ngenmuplus==1) {
+      m_mumu_gen_ = (lepplus->p4()+lepminus->p4()).M();
+    }
+  }
+
+  if (dijet_vec.size() != 0) {
+      
+    std::pair<const pat::Jet*,const pat::Jet*> dijet = dijet_vec.at(0);
+
+    pat::Jet const* jet1 = dijet.first;
+    pat::Jet const* jet2 = dijet.second;
+
+    Candidate::LorentzVector jet1vec = jet1->p4();
+    Candidate::LorentzVector jet2vec = jet2->p4();
+    Candidate::LorentzVector dijetvec = jet1vec+jet2vec;
+    Candidate::LorentzVector metvec = met.p4();
+    Candidate::LorentzVector metnomuvec = metnomuons;
+
+    // weight_nolep_ = wt;
+    // total_weight_lepveto_ =wt*vetowt;
+    // total_weight_leptight_=wt*tightwt;
+      
+    jet1_pt_ = jet1->pt();
+    jet2_pt_ = jet2->pt();
+    jet1_E_ = jet1vec.E();
+    jet2_E_ = jet2vec.E();
+    jet1_eta_ = jet1->eta();
+    jet2_eta_ = jet2->eta();
+    jet1_phi_ = jet1->phi();
+    jet2_phi_ = jet2->phi();
+    jet1_csv_=jet1->bDiscriminator("combinedInclusiveSecondaryVertexV2BJetTags");
+    jet2_csv_=jet2->bDiscriminator("combinedInclusiveSecondaryVertexV2BJetTags");
+    dijet_M_ = dijetvec.M();
+    dijet_deta_ = fabs(jet1->eta() - jet2->eta());
+    dijet_sumeta_ = jet1->eta() + jet2->eta();
+    dijet_dphi_ = fabs(ROOT::Math::VectorUtil::DeltaPhi(jet1vec,jet2vec));
+    met_ = met.pt();
+    met_x_ = metvec.Px();
+    met_y_ = metvec.Py();
+#ifdef DEBUG
+    printf("MET SIG %3.1f\n",met.mEtSig());
+#endif
+    met_significance_ = met.mEtSig();
+    sumet_ = met.sumEt();
+    if(l1MetExtra->size()==1){
+      l1met_ = (*l1MetExtra)[0].energy();
+#ifdef DEBUG
+      printf("L1MET %4.1f\n",l1met_); 
+#endif
     }
 
-    if (dijet_vec.size() != 0) {
-      
-      std::pair<const pat::Jet*,const pat::Jet*> dijet = dijet_vec.at(0);
+    metnomuons_ = metnomuons.pt();
+    metnomu_x_ = metnomuvec.Px();
+    metnomu_y_ = metnomuvec.Py();
+    metnomu_significance_ = met_significance_/met_*metnomuons_;
 
-      pat::Jet const* jet1 = dijet.first;
-      pat::Jet const* jet2 = dijet.second;
+    double ht =0;
+    double ht30 =0;
+    Candidate::LorentzVector mhtVec(0,0,0,0);
+    for(unsigned i =0; i<selJets.size();++i){
+      ht+=selJets[i]->p4().Et();
+      if(selJets[i]->pt()>30)	ht30+=selJets[i]->p4().Et();
+      mhtVec += selJets[i]->p4();
+    }
+    Candidate::LorentzVector unclVec = mhtVec + metvec;
 
-      Candidate::LorentzVector jet1vec = jet1->p4();
-      Candidate::LorentzVector jet2vec = jet2->p4();
-      Candidate::LorentzVector dijetvec = jet1vec+jet2vec;
-      Candidate::LorentzVector metvec = met.p4();
-      Candidate::LorentzVector metnomuvec = metnomuons;
+    ht_ = ht;
+    ht30_=ht30;
+    mht_ = mhtVec.Et();
+    sqrt_ht_ = sqrt(ht);
+    unclustered_et_ = unclVec.Et();
 
-      // weight_nolep_ = wt;
-      // total_weight_lepveto_ =wt*vetowt;
-      // total_weight_leptight_=wt*tightwt;
-      
-      jet1_pt_ = jet1->pt();
-      jet2_pt_ = jet2->pt();
-      jet1_E_ = jet1vec.E();
-      jet2_E_ = jet2vec.E();
-      jet1_eta_ = jet1->eta();
-      jet2_eta_ = jet2->eta();
-      jet1_phi_ = jet1->phi();
-      jet2_phi_ = jet2->phi();
-      jet1_csv_=jet1->bDiscriminator("combinedInclusiveSecondaryVertexV2BJetTags");
-      jet2_csv_=jet2->bDiscriminator("combinedInclusiveSecondaryVertexV2BJetTags");
-      dijet_M_ = dijetvec.M();
-      dijet_deta_ = fabs(jet1->eta() - jet2->eta());
-      dijet_sumeta_ = jet1->eta() + jet2->eta();
-      dijet_dphi_ = fabs(ROOT::Math::VectorUtil::DeltaPhi(jet1vec,jet2vec));
-      met_ = met.pt();
-      met_x_ = metvec.Px();
-      met_y_ = metvec.Py();
-      printf("MET SIG %3.1f\n",met.mEtSig());
-      met_significance_ = met.mEtSig();
-      sumet_ = met.sumEt();
-
-      // if(l1met.size()==1){
-      // 	l1met_ = l1met[0]->energy();
-      // }
-
-      metnomuons_ = metnomuons.pt();
-      metnomu_x_ = metnomuvec.Px();
-      metnomu_y_ = metnomuvec.Py();
-      metnomu_significance_ = met_significance_/met_*metnomuons_;
-
-      double ht =0;
-      double ht30 =0;
-      Candidate::LorentzVector mhtVec(0,0,0,0);
-      for(unsigned i =0; i<selJets.size();++i){
-	ht+=selJets[i]->p4().Et();
-	if(selJets[i]->pt()>30)	ht30+=selJets[i]->p4().Et();
-	mhtVec += selJets[i]->p4();
-      }
-      Candidate::LorentzVector unclVec = mhtVec + metvec;
-
-      ht_ = ht;
-      ht30_=ht30;
-      mht_ = mhtVec.Et();
-      sqrt_ht_ = sqrt(ht);
-      unclustered_et_ = unclVec.Et();
-
-      double dphi1 = fabs(ROOT::Math::VectorUtil::DeltaPhi(jet1vec,metvec));
-      double dphi2 = fabs(ROOT::Math::VectorUtil::DeltaPhi(jet2vec,metvec));
-      double nomudphi1 = fabs(ROOT::Math::VectorUtil::DeltaPhi(jet1vec,metnomuvec));
-      double nomudphi2 = fabs(ROOT::Math::VectorUtil::DeltaPhi(jet2vec,metnomuvec));
-      jet1met_dphi_ = dphi1;
-      jet2met_dphi_ = dphi2;
-      jet1metnomu_dphi_ = nomudphi1;
-      jet2metnomu_dphi_ = nomudphi2;
-      jetmet_mindphi_ = std::min(dphi1,dphi2);
-      jetmetnomu_mindphi_ = std::min(nomudphi1,nomudphi2);
+    double dphi1 = fabs(ROOT::Math::VectorUtil::DeltaPhi(jet1vec,metvec));
+    double dphi2 = fabs(ROOT::Math::VectorUtil::DeltaPhi(jet2vec,metvec));
+    double nomudphi1 = fabs(ROOT::Math::VectorUtil::DeltaPhi(jet1vec,metnomuvec));
+    double nomudphi2 = fabs(ROOT::Math::VectorUtil::DeltaPhi(jet2vec,metnomuvec));
+    jet1met_dphi_ = dphi1;
+    jet2met_dphi_ = dphi2;
+    jet1metnomu_dphi_ = nomudphi1;
+    jet2metnomu_dphi_ = nomudphi2;
+    jetmet_mindphi_ = std::min(dphi1,dphi2);
+    jetmetnomu_mindphi_ = std::min(nomudphi1,nomudphi2);
       
 
-      dijetmet_scalarSum_pt_ = jet1->pt()+jet2->pt()+met.pt();
-      dijetmet_vectorialSum_pt_ = (jet1vec+jet2vec+metvec).Pt();
-      dijetmet_ptfraction_ = dijetvec.pt()/(dijetvec.pt()+met.pt());
-      dijetmetnomu_scalarSum_pt_ = jet1->pt()+jet2->pt()+metnomuons.pt();
-      dijetmetnomu_vectorialSum_pt_ = (jet1vec+jet2vec+metnomuvec).Pt();
-      dijetmetnomu_ptfraction_ = dijetvec.pt()/(dijetvec.pt()+metnomuons.pt());
+    dijetmet_scalarSum_pt_ = jet1->pt()+jet2->pt()+met.pt();
+    dijetmet_vectorialSum_pt_ = (jet1vec+jet2vec+metvec).Pt();
+    dijetmet_ptfraction_ = dijetvec.pt()/(dijetvec.pt()+met.pt());
+    dijetmetnomu_scalarSum_pt_ = jet1->pt()+jet2->pt()+metnomuons.pt();
+    dijetmetnomu_vectorialSum_pt_ = (jet1vec+jet2vec+metnomuvec).Pt();
+    dijetmetnomu_ptfraction_ = dijetvec.pt()/(dijetvec.pt()+metnomuons.pt());
 
-      jet1met_scalarprod_ = (jet1vec.Px()*met_x_+jet1vec.Py()*met_y_)/met_;
-      jet2met_scalarprod_ = (jet2vec.Px()*met_x_+jet2vec.Py()*met_y_)/met_;
+    jet1met_scalarprod_ = (jet1vec.Px()*met_x_+jet1vec.Py()*met_y_)/met_;
+    jet2met_scalarprod_ = (jet2vec.Px()*met_x_+jet2vec.Py()*met_y_)/met_;
 
-      jet1metnomu_scalarprod_ = (jet1vec.Px()*metnomu_x_+jet1vec.Py()*metnomu_y_)/met_;
-      jet2metnomu_scalarprod_ = (jet2vec.Px()*metnomu_x_+jet2vec.Py()*metnomu_y_)/met_;
+    jet1metnomu_scalarprod_ = (jet1vec.Px()*metnomu_x_+jet1vec.Py()*metnomu_y_)/met_;
+    jet2metnomu_scalarprod_ = (jet2vec.Px()*metnomu_x_+jet2vec.Py()*metnomu_y_)/met_;
 
-      jetunclet_mindphi_ = std::min(fabs(ROOT::Math::VectorUtil::DeltaPhi(jet1vec,unclVec)),
-				    fabs(ROOT::Math::VectorUtil::DeltaPhi(jet2vec,unclVec)));
-      metunclet_dphi_ = fabs(ROOT::Math::VectorUtil::DeltaPhi(unclVec,metvec));
-      metnomuunclet_dphi_ = fabs(ROOT::Math::VectorUtil::DeltaPhi(unclVec,metnomuvec));
+    jetunclet_mindphi_ = std::min(fabs(ROOT::Math::VectorUtil::DeltaPhi(jet1vec,unclVec)),
+				  fabs(ROOT::Math::VectorUtil::DeltaPhi(jet2vec,unclVec)));
+    metunclet_dphi_ = fabs(ROOT::Math::VectorUtil::DeltaPhi(unclVec,metvec));
+    metnomuunclet_dphi_ = fabs(ROOT::Math::VectorUtil::DeltaPhi(unclVec,metnomuvec));
 
-      double eta_high = (jet1->eta() > jet2->eta()) ? jet1->eta() : jet2->eta();
-      double eta_low = (jet1->eta() > jet2->eta()) ? jet2->eta() : jet1->eta();
-      n_jets_cjv_30_ = 0;
-      n_jets_cjv_20EB_30EE_ = 0;
-      jet3_pt_=-1;
-      jet3_eta_=-10000;
-      jet3_phi_=-10000;
-      cjvjetpt_=-1;
-      alljetsmetnomu_mindphi_=jetmetnomu_mindphi_;
-      alljetsmet_mindphi_=jetmet_mindphi_;
-      if (selJets.size() > 2) {
-	for (unsigned i = 2; i < selJets.size(); ++i) {
-	  bool isInCentralGap = fabs(selJets[i]->eta())<4.7 && selJets[i]->eta() > eta_low && selJets[i]->eta() < eta_high;
-	  double tmppt=selJets[i]->pt();
-	  if(isInCentralGap&&(tmppt>cjvjetpt_)){
-	    cjvjetpt_=tmppt;
-	  }
-	  if(tmppt>jet3_pt_){
-	    jet3_csv_=selJets[i]->bDiscriminator("combinedInclusiveSecondaryVertexV2BJetTags");
-	    jet3_pt_=tmppt;
-	    jet3_eta_=selJets[i]->eta();
-	    jet3_phi_=selJets[i]->phi();
-	  }
-	  if (selJets[i]->pt() > 30.0 && isInCentralGap){
-	    ++n_jets_cjv_30_;
-	  }
-	  if ( ((selJets[i]->eta()<2.4 && selJets[i]->pt() > 20.0) ||
-		(selJets[i]->eta()>=2.4 && selJets[i]->pt() > 30.0)) && 
-	       isInCentralGap){
-	    ++n_jets_cjv_20EB_30EE_;
-	  }
-	  if(selJets[i]->pt()>30.0){
-	    double thisjetmetnomudphi = fabs(ROOT::Math::VectorUtil::DeltaPhi(selJets[i]->p4(),metnomuvec));
-	    if(thisjetmetnomudphi<alljetsmetnomu_mindphi_)alljetsmetnomu_mindphi_=thisjetmetnomudphi;
-	    double thisjetmetdphi = fabs(ROOT::Math::VectorUtil::DeltaPhi(selJets[i]->p4(),metvec));
-	    if(thisjetmetdphi<alljetsmet_mindphi_)alljetsmet_mindphi_=thisjetmetdphi;
-	  }
+    double eta_high = (jet1->eta() > jet2->eta()) ? jet1->eta() : jet2->eta();
+    double eta_low = (jet1->eta() > jet2->eta()) ? jet2->eta() : jet1->eta();
+    n_jets_cjv_30_ = 0;
+    n_jets_cjv_20EB_30EE_ = 0;
+    jet3_pt_=-1;
+    jet3_eta_=-10000;
+    jet3_phi_=-10000;
+    cjvjetpt_=-1;
+    alljetsmetnomu_mindphi_=jetmetnomu_mindphi_;
+    alljetsmet_mindphi_=jetmet_mindphi_;
+    if (selJets.size() > 2) {
+      for (unsigned i = 2; i < selJets.size(); ++i) {
+	bool isInCentralGap = fabs(selJets[i]->eta())<4.7 && selJets[i]->eta() > eta_low && selJets[i]->eta() < eta_high;
+	double tmppt=selJets[i]->pt();
+	if(isInCentralGap&&(tmppt>cjvjetpt_)){
+	  cjvjetpt_=tmppt;
+	}
+	if(tmppt>jet3_pt_){
+	  jet3_csv_=selJets[i]->bDiscriminator("combinedInclusiveSecondaryVertexV2BJetTags");
+	  jet3_pt_=tmppt;
+	  jet3_eta_=selJets[i]->eta();
+	  jet3_phi_=selJets[i]->phi();
+	}
+	if (selJets[i]->pt() > 30.0 && isInCentralGap){
+	  ++n_jets_cjv_30_;
+	}
+	if ( ((selJets[i]->eta()<2.4 && selJets[i]->pt() > 20.0) ||
+	      (selJets[i]->eta()>=2.4 && selJets[i]->pt() > 30.0)) && 
+	     isInCentralGap){
+	  ++n_jets_cjv_20EB_30EE_;
+	}
+	if(selJets[i]->pt()>30.0){
+	  double thisjetmetnomudphi = fabs(ROOT::Math::VectorUtil::DeltaPhi(selJets[i]->p4(),metnomuvec));
+	  if(thisjetmetnomudphi<alljetsmetnomu_mindphi_)alljetsmetnomu_mindphi_=thisjetmetnomudphi;
+	  double thisjetmetdphi = fabs(ROOT::Math::VectorUtil::DeltaPhi(selJets[i]->p4(),metvec));
+	  if(thisjetmetdphi<alljetsmet_mindphi_)alljetsmet_mindphi_=thisjetmetdphi;
 	}
       }
     }
-      /*
-      static unsigned processed = 0;
-      //IF PASSES CUTS FILL TREE
-      if(!ignoreLeptons_){
-	if(!do_promptskim_){
-	  if (metnomu_significance_ > 3.0 &&  dijet_deta_>3.6){
-	    //if (dijet_M_>1000 &&  dijet_deta_>3.6 && metnomuons_>100 && jet1_pt_>50){//for prompt presel
-	    outputTree_->Fill();
-	    ++processed;
-	  }
-	}
-	else{
-	  if (passtrigger_==1&&dijet_deta_>3.6&&metnomuons_>90&&jet1_pt_>50){
-	    //if (dijet_M_>1000 &&  dijet_deta_>3.6 && metnomuons_>100 && jet1_pt_>50){//for prompt presel
-	    outputTree_->Fill();
-	    ++processed;
-	  }
-	}
-      }
-      else{
-	if(!do_promptskim_){
-	  if (metnomu_significance_ > 3.0 &&  dijet_deta_>3.6 &&m_mumu_gen_>80&&m_mumu_gen_<100){
-	    //if (dijet_M_>1000 &&  dijet_deta_>3.6 && metnomuons_>100 && jet1_pt_>50){//for prompt presel
-	    outputTree_->Fill();
-	    ++processed;
-	  }
-	}
-	else{
-	  if (passtrigger_==1&&dijet_deta_>3.6&&metnomuons_>90&&jet1_pt_>50){
-	    //if (dijet_M_>1000 &&  dijet_deta_>3.6 && metnomuons_>100 && jet1_pt_>50){//for prompt presel
-	    outputTree_->Fill();
-	    ++processed;
-	  }
-	}
-	
-      }
-      if (processed == 500) outputTree_->OptimizeBaskets();
-    }
+  }
 
-    return 0;
-  */
   outputTree_->Fill();
 } // pruneKids
 

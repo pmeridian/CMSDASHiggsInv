@@ -1,7 +1,21 @@
 import FWCore.ParameterSet.Config as cms
+import FWCore.ParameterSet.VarParsing as VarParsing
+import sys
 
-process = cms.Process("Demo")
+process = cms.Process("LightTreeMaker")
+options = VarParsing.VarParsing ('analysis')
 
+options.register ('hltSkim',
+                  0, # default value
+                  VarParsing.VarParsing.multiplicity.singleton, # singleton or list
+                  VarParsing.VarParsing.varType.int,          # string, int, or float
+                  "skim on hlt value")
+
+options.parseArguments()
+hltSkim      = options.hltSkim
+
+if (hltSkim == 1):
+    print "==> HLT Skimming: enabled"
 process.load("FWCore.MessageService.MessageLogger_cfi")
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(100) )
 
@@ -26,7 +40,9 @@ process.lightTree = cms.EDAnalyzer("LightTreeProducer",
                                    bits = cms.InputTag("TriggerResults","","HLT"),
                                    prescales = cms.InputTag("patTrigger"),
                                    objects = cms.InputTag("selectedPatTrigger"),
-                                   pruned = cms.InputTag("prunedGenParticles")
+                                   pruned = cms.InputTag("prunedGenParticles"),
+                                   l1met = cms.InputTag("l1extraParticles","MET"),
+                                   hltSkimming = cms.int32(hltSkim)
 )
 
 

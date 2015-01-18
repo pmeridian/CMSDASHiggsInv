@@ -43,7 +43,7 @@ class LightTreeProducer : public edm::EDAnalyzer
    public:
       explicit LightTreeProducer(const edm::ParameterSet&);
       ~LightTreeProducer();
-
+      int hltSkim_;
 
    private:
       
@@ -78,6 +78,7 @@ class LightTreeProducer : public edm::EDAnalyzer
       edm::EDGetTokenT<pat::TriggerObjectStandAloneCollection> triggerObjects_;
       edm::EDGetTokenT<pat::PackedTriggerPrescales> triggerPrescales_;
       edm::EDGetTokenT<edm::View<reco::GenParticle> > prunedGenToken_;
+      edm::EDGetTokenT<std::vector<l1extra::L1EtMissParticle> > l1MetToken_;
 
       TTree *outputTree_;
       
@@ -156,6 +157,7 @@ class LightTreeProducer : public edm::EDAnalyzer
       int nvetoelectrons_;
       int nselelectrons_;
       int ntaus_;
+      int njets_;
       
       double m_mumu_;
       double m_mumu_gen_;
