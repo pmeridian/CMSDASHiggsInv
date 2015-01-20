@@ -1,1 +1,2 @@
 ls MC_* | sed 's/.root//' > filelist.dat
+for i in `cat filelist.dat` ; do ./bin/skimming 0 /data/shared/Long_Exercise_Hinvisible/LightTrees/ /data/shared/Long_Exercise_Hinvisible/Skims/ $i; done
