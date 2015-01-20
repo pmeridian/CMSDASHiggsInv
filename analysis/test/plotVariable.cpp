@@ -27,7 +27,7 @@ int main( int argc, char** argv )
 {//main
 
   std::string varName = "dijet_M";
-  std::string path = "/data/shared/Long_Exercise_Hinvisible/Skims_13TeV/";
+  std::string path = "/data/shared/meridian/Long_Exercise_Hinvisible/Skims/";
   //std::string path = "../../data/Skims8TeV/";
 
   double lumiData = 10000;//in pb-1

@@ -47,6 +47,7 @@ class LightTreeProducer : public edm::EDAnalyzer
 
    private:
       
+      void resetVariables();
       virtual void beginJob();
       virtual void analyze(const edm::Event&, const edm::EventSetup&);
       virtual void endJob() ;

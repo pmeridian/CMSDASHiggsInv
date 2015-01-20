@@ -81,7 +81,12 @@ LightTreeProducer::LightTreeProducer(const edm::ParameterSet& iConfig):
   hltSkim_ =iConfig.getParameter<int>("hltSkimming");
 
   outputTree_ = 0;
+
+  resetVariables();
+}
   
+void LightTreeProducer::resetVariables()
+{
   run_=-1;
   lumi_=-1;
   event_=-1;
@@ -173,8 +178,6 @@ LightTreeProducer::LightTreeProducer(const edm::ParameterSet& iConfig):
   tau1_phi_=-1;
   lep_mt_=-1;
   n_vertices_=-1;
-
-  
 }
   
   
@@ -297,6 +300,7 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
 #ifdef DEBUG
   printf ("===> START EVENT\n");
 #endif
+  resetVariables();
 
   edm::Handle<edm::TriggerResults> triggerBits;
   edm::Handle<pat::TriggerObjectStandAloneCollection> triggerObjects;
