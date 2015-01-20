@@ -1,0 +1,52 @@
+## Cross Sections
+XS_DYJetsToLL_M-50_13TeV-madgraph-pythia8:6025.2
+XS_DYJetsToLL_M-50_HT-100to200_Tune4C_13TeV-madgraph-tauola:246.7
+XS_DYJetsToLL_M-50_HT-200to400_Tune4C_13TeV-madgraph-tauola:66.32
+XS_DYJetsToLL_M-50_HT-400to600_Tune4C_13TeV-madgraph-tauola:8.31
+XS_DYJetsToLL_M-50_HT-600toInf_Tune4C_13TeV-madgraph-tauola:2.77
+XS_TTJets_MSDecaysCKM_central_Tune4C_13TeV-madgraph-tauola:806.
+XS_TT_Tune4C_13TeV-pythia8-tauola:806.
+XS_T_tW-channel-DR_Tune4C_13TeV-CSA14-powheg-tauola:35.
+XS_Tbar_tW-channel-DR_Tune4C_13TeV-CSA14-powheg-tauola:35.
+XS_VBF_HToInv_M-125_13TeV_powheg-pythia6:3.748
+XS_WJetsToLNu_13TeV-madgraph-pythia8-tauola:61526.7
+XS_WJetsToLNu_HT-100to200_Tune4C_13TeV-madgraph-tauol:2231.42
+XS_WJetsToLNu_HT-200to400_Tune4C_13TeV-madgraph-tauola:579.16
+XS_WJetsToLNu_HT-400to600_Tune4C_13TeV-madgraph-tauola:68.29
+XS_WJetsToLNu_HT-600toInf_Tune4C_13TeV-madgraph-tauola:23.10
+XS_ZJetsToNuNu_HT-100to200_Tune4C_13TeV-madgraph-tauola:473.
+XS_ZJetsToNuNu_HT-200to400_Tune4C_13TeV-madgraph-tauola:128.
+XS_ZJetsToNuNu_HT-400to600_Tune4C_13TeV-madgraph-tauola:15.2
+XS_ZJetsToNuNu_HT-600toInf_Tune4C_13TeV-madgraph-tauola:5.22
+XS_ZZTo4L_Tune4C_13TeV-powheg-pythia8:16.5
+## Processed Events
+EVT_DYJetsToLL_M-50_13TeV-madgraph-pythia8:2829164
+EVT_DYJetsToLL_M-50_HT-100to200_Tune4C_13TeV-madgraph-tauola:4054159
+EVT_DYJetsToLL_M-50_HT-200to400_Tune4C_13TeV-madgraph-tauola:4666496
+EVT_DYJetsToLL_M-50_HT-400to600_Tune4C_13TeV-madgraph-tauola:4931372
+EVT_DYJetsToLL_M-50_HT-600toInf_Tune4C_13TeV-madgraph-tauola:4493574
+EVT_TTJets_MSDecaysCKM_central_Tune4C_13TeV-madgraph-tauola:25446993
+EVT_TT_Tune4C_13TeV-pythia8-tauola:2991609
+EVT_T_tW-channel-DR_Tune4C_13TeV-CSA14-powheg-tauola:986100
+EVT_Tbar_tW-channel-DR_Tune4C_13TeV-CSA14-powheg-tauola:971800
+EVT_VBF_HToInv_M-125_13TeV_powheg-pythia6:115863
+EVT_WJetsToLNu_13TeV-madgraph-pythia8-tauola:9817462
+EVT_WJetsToLNu_HT-100to200_Tune4C_13TeV-madgraph-tauol:5262265
+EVT_WJetsToLNu_HT-200to400_Tune4C_13TeV-madgraph-tauola:4936077
+EVT_WJetsToLNu_HT-400to600_Tune4C_13TeV-madgraph-tauola:4640594
+EVT_WJetsToLNu_HT-600toInf_Tune4C_13TeV-madgraph-tauola:4581841
+EVT_ZJetsToNuNu_HT-100to200_Tune4C_13TeV-madgraph-tauola:4986424
+EVT_ZJetsToNuNu_HT-200to400_Tune4C_13TeV-madgraph-tauola:4546470
+EVT_ZJetsToNuNu_HT-400to600_Tune4C_13TeV-madgraph-tauola:4433784
+EVT_ZJetsToNuNu_HT-600toInf_Tune4C_13TeV-madgraph-tauola:4463806
+EVT_ZZTo4L_Tune4C_13TeV-powheg-pythia8:1958600
+## Lumi
+LUMI_DATA:10000.
+LUMI_DATA_LABEL:10.0 fb^{-1}
+LUMI_PARKEDDATA:10000.
+LUMI_PARKEDDATA_LABEL:10.0 fb^{-1}
+YEAR_LABEL:2015
+## Signal options
+DRAW_SIGNAL:1
+DRAW_SIGNAL_FACTOR:1
+DRAW_SIGNAL_MASS:125

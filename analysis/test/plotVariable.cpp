@@ -27,10 +27,10 @@ int main( int argc, char** argv )
 {//main
 
   std::string varName = "dijet_M";
-  //std::string path = "/data/shared/Long_Exercise_Hinvisible/Skims/";
-  std::string path = "../../data/Skims8TeV/";
+  std::string path = "/data/shared/Long_Exercise_Hinvisible/Skims_13TeV/";
+  //std::string path = "../../data/Skims8TeV/";
 
-  double lumiData = 20000;//in pb-1
+  double lumiData = 10000;//in pb-1
 
   double xmin  = 1000;
   double xmax = 4000;
@@ -42,9 +42,11 @@ int main( int argc, char** argv )
   const unsigned nCat = 4;
   std::string bkgcat[nCat] = {"Top","VV","W+jets","Z+jets"};
 
-  double dataSF[nCat] = {0.84,1,0.7,0.67*0.6/0.0334};
+  double dataSF[nCat] = {0.84,1,0.7,0.67};//*0.6/0.0334};
 
   std::vector<std::string> files;
+  //8 TeV
+  /*
   files.push_back("MC_TTJets");
   files.push_back("MC_T-tW");
   files.push_back("MC_Tbar-tW");
@@ -92,48 +94,79 @@ int main( int argc, char** argv )
   //files.push_back("MC_ZJetsToNuNu_50_HT_100");
   //files.push_back("MC_EWK-Z2j");
   files.push_back("MC_EWK-Z2j_iglep");
+  */
+  files.push_back("TTJets_MSDecaysCKM_central_Tune4C_13TeV-madgraph-tauola");
+  //files.push_back("TT_Tune4C_13TeV-pythia8-tauola");
+  files.push_back("T_tW-channel-DR_Tune4C_13TeV-CSA14-powheg-tauola");
+  files.push_back("Tbar_tW-channel-DR_Tune4C_13TeV-CSA14-powheg-tauola");
+  files.push_back("ZZTo4L_Tune4C_13TeV-powheg-pythia8");
+  files.push_back("WJetsToLNu_13TeV-madgraph-pythia8-tauola");
+  files.push_back("WJetsToLNu_HT-100to200_Tune4C_13TeV-madgraph-tauol");
+  files.push_back("WJetsToLNu_HT-200to400_Tune4C_13TeV-madgraph-tauola");
+  files.push_back("WJetsToLNu_HT-400to600_Tune4C_13TeV-madgraph-tauola");
+  files.push_back("WJetsToLNu_HT-600toInf_Tune4C_13TeV-madgraph-tauola");
+  files.push_back("ZJetsToNuNu_HT-100to200_Tune4C_13TeV-madgraph-tauola");
+  files.push_back("ZJetsToNuNu_HT-200to400_Tune4C_13TeV-madgraph-tauola");
+  files.push_back("ZJetsToNuNu_HT-400to600_Tune4C_13TeV-madgraph-tauola");
+  files.push_back("ZJetsToNuNu_HT-600toInf_Tune4C_13TeV-madgraph-tauola");
+  //files.push_back("DYJetsToLL_M-50_13TeV-madgraph-pythia8");
+  //files.push_back("DYJetsToLL_M-50_HT-100to200_Tune4C_13TeV-madgraph-tauola");
+  //files.push_back("DYJetsToLL_M-50_HT-200to400_Tune4C_13TeV-madgraph-tauola");
+  //files.push_back("DYJetsToLL_M-50_HT-400to600_Tune4C_13TeV-madgraph-tauola");
+  //files.push_back("DYJetsToLL_M-50_HT-600toInf_Tune4C_13TeV-madgraph-tauola");
+
+  std::string sigfile = "VBF_HToInv_M-125_13TeV_powheg-pythia6";
 
   const unsigned nMC = files.size();
 
   TFile *fMC[nMC];
 
-  int color[nMC];
-  int style[nMC];
+  int color[nMC+1];
+  int style[nMC+1];
   std::string label[nMC];
 
 
   for (unsigned iF(0); iF<nMC;++iF){//loop on files
-    if (iF<7) {color[iF] = 5; style[iF] = 1001; label[iF] = bkgcat[0];}
-    else if (iF<10) {color[iF] = 4; style[iF] = 3004; label[iF] = bkgcat[1];}
-    else if (iF<34) {color[iF] = 2; style[iF] = 3005; label[iF] = bkgcat[2];}
+    if (iF<3) {color[iF] = 5; style[iF] = 1001; label[iF] = bkgcat[0];}
+    else if (iF<4) {color[iF] = 4; style[iF] = 3004; label[iF] = bkgcat[1];}
+    else if (iF<9) {color[iF] = 2; style[iF] = 3005; label[iF] = bkgcat[2];}
     else {color[iF] = 3; style[iF] = 3006; label[iF] = bkgcat[3];}
   };
 
+  color[nMC] = 7;
+  style[nMC] = 1001;
+
   TCanvas *myc = new TCanvas("myc","myc",1);
 
-  TH1F *hist[nMC];
+  TH1F *hist[nMC+1];
   TH1F *bkg[4]={0,0,0,0};
 
-  for (unsigned iF(0); iF<nMC;++iF){//loop on files
-
-    if (!testFile(path+files[iF]+".root",fMC[iF])) return 1;
+  TFile *fsig = 0;
+  if (!testFile(path+sigfile+".root",fsig)) return 1;
+  
+  for (unsigned iF(0); iF<nMC+1;++iF){//loop on files
+    if (iF==nMC) fsig->cd();
+    else {
+      if (!testFile(path+files[iF]+".root",fMC[iF])) return 1;
     
-    fMC[iF]->cd();
+      fMC[iF]->cd();
+    }
     TTree *tree = (TTree*)gDirectory->Get("LightTree");
     if (!tree) return 1;
 
-    bool isDY = files[iF].find("MC_DY")!=files[iF].npos;
-    //double weight = getNormalisationFactor(lumiData,files[iF]);
+    bool isDY = iF<nMC && files[iF].find("DY")!=files[iF].npos;
+    
+    double weight = getNormalisationFactor(lumiData,iF<nMC?files[iF]:sigfile);
 
     std::ostringstream lselection,lname;
     std::string signal;
-    if (!isDY) signal = "(nvetomuons==0 && nvetoelectrons==0)";
-    else signal = "(nselmuons==2)";//dummy sel
-    //lselection << signal << "*" << weight;
+    if (!isDY) signal = "(l1met>=70 && nvetomuons==0 && nvetoelectrons==0)";
+    else signal = "(l1met>=70 && nselmuons==2)";//dummy sel
+    lselection << signal << "*" << weight;
     //for 8TeV trees
-    lselection << signal ;
-    if (!isDY) lselection << "*total_weight_lepveto";
-    else lselection << "*total_weight_leptight";
+    //lselection << signal ;
+    //if (!isDY) lselection << "*total_weight_lepveto";
+    //else lselection << "*total_weight_leptight";
     lname << "hist" << iF;
     hist[iF] = new TH1F(lname.str().c_str(),title.c_str(),nBins,xmin,xmax);
     hist[iF]->Sumw2();
@@ -144,11 +177,12 @@ int main( int argc, char** argv )
     hist[iF]->SetLineColor(color[iF]);
     hist[iF]->SetFillColor(color[iF]);
     hist[iF]->SetFillStyle(style[iF]);
-
-    for (unsigned iC(0);iC<nCat;++iC){
-      if (label[iF] != bkgcat[iC]) continue;
-      if (!bkg[iC]) bkg[iC] = (TH1F*)hist[iF]->Clone(bkgcat[iC].c_str());
-      else bkg[iC]->Add(hist[iF]);
+    if (iF<nMC){
+      for (unsigned iC(0);iC<nCat;++iC){
+	if (label[iF] != bkgcat[iC]) continue;
+	if (!bkg[iC]) bkg[iC] = (TH1F*)hist[iF]->Clone(bkgcat[iC].c_str());
+	else bkg[iC]->Add(hist[iF]);
+      }
     }
 
   }//loop on files
@@ -166,6 +200,7 @@ int main( int argc, char** argv )
     bkg[iC]->Scale(dataSF[iC]);
     std::cout <<  bkgcat[iC] << " " << bkg[iC]->Integral() << std::endl;
   }
+  std::cout << " signal " << hist[nMC]->Integral() << std::endl;  
 
   //stack
   bkg[3]->Add(bkg[0]);
@@ -180,6 +215,8 @@ int main( int argc, char** argv )
     bkg[newid]->Draw(iC==0? "hist" : "histsame");
     leg->AddEntry(bkg[newid],bkgcat[newid].c_str(),"F");
   }
+  hist[nMC]->Draw("same");
+  leg->AddEntry(hist[nMC],"VBF H, m_{H}=125 GeV","F");
   leg->Draw("same");
   myc->Update();
   std::ostringstream lsave;

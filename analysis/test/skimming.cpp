@@ -77,7 +77,8 @@ int main( int argc, char** argv )
 
   LightTreeReader reader;
 
-  reader.tree_ = (TTree*)file->Get("LightTree");
+  file->cd("lightTree");
+  reader.tree_ = (TTree*)gDirectory->Get("LightTree");
   if (!reader.tree_){
     std::cout << " -- Error, input tree cannot be opened. Exiting..." << std::endl;
     return 1;
@@ -91,6 +92,7 @@ int main( int argc, char** argv )
   std::cout << " -- Processing = " << nEvts  << " events out of " << reader.tree_->GetEntries() << std::endl;
   
   //clone tree without copying the entries
+  outFile->cd();
   outTree = (TTree*)reader.tree_->CloneTree(0);
 
   unsigned nPass = 0;

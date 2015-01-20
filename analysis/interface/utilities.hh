@@ -20,7 +20,7 @@ bool testFile(std::string input, TFile* & file, const bool recreate=false){
 double getNormalisationFactor(const double lumi, std::string dataset){
   //Get lumi xs and events from params file
   SimpleParamParser parser;
-  std::string input_params_ = "data/ParamsDec18.dat";
+  std::string input_params_ = "data/Params13TeV.dat";
   //std::cout << "** Parsing parameter file... **" << input_params_ << std::endl;
   parser.ParseFile(input_params_);
   //std::cout<<"parsed"<<std::endl;
