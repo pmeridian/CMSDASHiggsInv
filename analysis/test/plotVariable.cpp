@@ -27,9 +27,10 @@ int main( int argc, char** argv )
 {//main
 
   std::string varName = "dijet_M";
-  std::string path = "/data/shared/Long_Exercise_Hinvisible/Skims/";
+  //std::string path = "/data/shared/Long_Exercise_Hinvisible/Skims/";
+  std::string path = "../../data/Skims8TeV/";
 
-  double lumiData = 10000;//in pb-1
+  double lumiData = 20000;//in pb-1
 
   double xmin  = 1000;
   double xmax = 4000;
@@ -41,6 +42,7 @@ int main( int argc, char** argv )
   const unsigned nCat = 4;
   std::string bkgcat[nCat] = {"Top","VV","W+jets","Z+jets"};
 
+  double dataSF[nCat] = {0.84,1,0.7,0.67*0.6/0.0334};
 
   std::vector<std::string> files;
   files.push_back("MC_TTJets");
@@ -77,17 +79,19 @@ int main( int argc, char** argv )
   files.push_back("MC_EWK-W2jplus_munu");
   files.push_back("MC_EWK-W2jminus_taunu");
   files.push_back("MC_EWK-W2jplus_taunu");
+  //use DY ignoring muons for Znunu
   files.push_back("MC_DYJetsToLL");
+  //files.push_back("MC_DYJetsToLL_PtZ-100-madgraph");
   files.push_back("MC_DY1JetsToLL");
   files.push_back("MC_DY2JetsToLL");
   files.push_back("MC_DY3JetsToLL");
   files.push_back("MC_DY4JetsToLL");
-  files.push_back("MC_ZJetsToNuNu_100_HT_200");
-  files.push_back("MC_ZJetsToNuNu_200_HT_400");
-  files.push_back("MC_ZJetsToNuNu_400_HT_inf");
-  files.push_back("MC_ZJetsToNuNu_50_HT_100");
-  files.push_back("MC_EWK-Z2j");
-  //files.push_back("MC_EWK-Z2jiglep");
+  //files.push_back("MC_ZJetsToNuNu_100_HT_200");
+  //files.push_back("MC_ZJetsToNuNu_200_HT_400");
+  //files.push_back("MC_ZJetsToNuNu_400_HT_inf");
+  //files.push_back("MC_ZJetsToNuNu_50_HT_100");
+  //files.push_back("MC_EWK-Z2j");
+  files.push_back("MC_EWK-Z2j_iglep");
 
   const unsigned nMC = files.size();
 
@@ -118,11 +122,18 @@ int main( int argc, char** argv )
     TTree *tree = (TTree*)gDirectory->Get("LightTree");
     if (!tree) return 1;
 
-    double weight = getNormalisationFactor(lumiData,files[iF]);
+    bool isDY = files[iF].find("MC_DY")!=files[iF].npos;
+    //double weight = getNormalisationFactor(lumiData,files[iF]);
 
     std::ostringstream lselection,lname;
-    std::string signal = "(nvetomuons==0 && nvetoelectrons==0)";
-    lselection << signal << "*" << weight;
+    std::string signal;
+    if (!isDY) signal = "(nvetomuons==0 && nvetoelectrons==0)";
+    else signal = "(nselmuons==2)";//dummy sel
+    //lselection << signal << "*" << weight;
+    //for 8TeV trees
+    lselection << signal ;
+    if (!isDY) lselection << "*total_weight_lepveto";
+    else lselection << "*total_weight_leptight";
     lname << "hist" << iF;
     hist[iF] = new TH1F(lname.str().c_str(),title.c_str(),nBins,xmin,xmax);
     hist[iF]->Sumw2();
@@ -150,6 +161,12 @@ int main( int argc, char** argv )
   leg->SetFillColor(10);
   //myc->Divide(2,2);
   
+  std::cout << " -- Yields: " << std::endl;
+  for (unsigned iC(0);iC<nCat;++iC){
+    bkg[iC]->Scale(dataSF[iC]);
+    std::cout <<  bkgcat[iC] << " " << bkg[iC]->Integral() << std::endl;
+  }
+
   //stack
   bkg[3]->Add(bkg[0]);
   bkg[3]->Add(bkg[1]);

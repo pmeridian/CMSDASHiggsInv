@@ -25,6 +25,8 @@
 #include "DataFormats/Common/interface/TriggerResults.h"
 #include "DataFormats/PatCandidates/interface/TriggerObjectStandAlone.h"
 #include "DataFormats/PatCandidates/interface/PackedTriggerPrescales.h"
+#include "DataFormats/PatCandidates/interface/PackedGenParticle.h"
+#include "DataFormats/HepMCCandidate/interface/GenParticle.h"
 
 #include <map>
 #include <set>
@@ -41,7 +43,7 @@ class LightTreeProducer : public edm::EDAnalyzer
    public:
       explicit LightTreeProducer(const edm::ParameterSet&);
       ~LightTreeProducer();
-
+      int hltSkim_;
 
    private:
       
@@ -49,20 +51,34 @@ class LightTreeProducer : public edm::EDAnalyzer
       virtual void analyze(const edm::Event&, const edm::EventSetup&);
       virtual void endJob() ;
 
+
+      template<typename T>
+	struct RefGreaterByPt {
+	  typedef T first_argument_type;
+	  typedef T second_argument_type;
+	  bool operator()( const T*  t1, const T* t2 ) const {
+	    return t1->pt() > t2->pt();
+	  }
+	};
+
+
+      bool MinDRToCollection(reco::Candidate const* cand,std::vector<const reco::Candidate*>& coll, double cut);
+      bool pu_id_mva_loose(const pat::Jet& j);
+      // ----------member data ---------------------------
       edm::Service<TFileService> fs_;      
 
-      // ----------member data ---------------------------
       edm::EDGetTokenT<reco::VertexCollection> vtxToken_;
       edm::EDGetTokenT<pat::MuonCollection> muonToken_;
       edm::EDGetTokenT<pat::ElectronCollection> electronToken_;
       edm::EDGetTokenT<pat::TauCollection> tauToken_;
       edm::EDGetTokenT<pat::PhotonCollection> photonToken_;
       edm::EDGetTokenT<pat::JetCollection> jetToken_;
-      edm::EDGetTokenT<pat::JetCollection> fatjetToken_;
       edm::EDGetTokenT<pat::METCollection> metToken_;
       edm::EDGetTokenT<edm::TriggerResults> triggerBits_;
       edm::EDGetTokenT<pat::TriggerObjectStandAloneCollection> triggerObjects_;
       edm::EDGetTokenT<pat::PackedTriggerPrescales> triggerPrescales_;
+      edm::EDGetTokenT<edm::View<reco::GenParticle> > prunedGenToken_;
+      edm::EDGetTokenT<std::vector<l1extra::L1EtMissParticle> > l1MetToken_;
 
       TTree *outputTree_;
       
@@ -141,6 +157,7 @@ class LightTreeProducer : public edm::EDAnalyzer
       int nvetoelectrons_;
       int nselelectrons_;
       int ntaus_;
+      int njets_;
       
       double m_mumu_;
       double m_mumu_gen_;
