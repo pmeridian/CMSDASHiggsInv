@@ -142,10 +142,12 @@ int main(int argc, char* argv[]) {
                                         "nTrain_Signal=0:nTrain_Background=0:SplitMode=Random:NormMode=NumEvents:!V" );
 
    // ---- Book MVA methods
-   factory->BookMethod( TMVA::Types::kCuts, "Cuts",
-			"!H:!V:FitMethod=MC:EffSel:SampleSize=200000:VarProp=FSmart" );
-    factory->BookMethod( TMVA::Types::kCuts, "CutsSA",
-    			"!H:!V:FitMethod=SA:EffSel:MaxCalls=150000:KernelTemp=IncAdaptive:InitialTemp=1e+6:MinTemp=1e-6:Eps=1e-10:UseDefaultScale" );
+   // factory->BookMethod( TMVA::Types::kCuts, "Cuts",
+   // 			//			"!H:!V:FitMethod=MC:EffSel:SampleSize=200000:VarProp[0]=FSmart:VarProp[1]=FSmart:VarProp[2]=FSmart:VarProp[3]=FSmart:VarProp[4]=FSmart:VarProp[5]=FSmart" );
+    factory->BookMethod( TMVA::Types::kCuts, "CutsGA",
+    			"H:!V:FitMethod=GA:EffSel:Steps=30:Cycles=3:PopSize=400:SC_steps=10:SC_rate=5:SC_factor=0.95:VarProp[0]=FSmart:VarProp[1]=FSmart:VarProp[2]=FSmart:VarProp[3]=FSmart:VarProp[4]=FSmart:VarProp[5]=FSmart" );
+   // factory->BookMethod( TMVA::Types::kCuts, "CutsSA",
+   // 			"!H:!V:FitMethod=SA:EffSel:MaxCalls=150000:KernelTemp=IncAdaptive:InitialTemp=1e+6:MinTemp=1e-6:Eps=1e-10:UseDefaultScale" );
    //factory->BookMethod( TMVA::Types::kBDT, "BDT","!H:!V:NTrees=1000:MinNodeSize=2.5%:MaxDepth=3:BoostType=AdaBoost:AdaBoostBeta=0.5:SeparationType=GiniIndex:nCuts=20:PruneMethod=NoPruning");
 
    // ---- Now you can tell the factory to train, test, and evaluate the MVAs
