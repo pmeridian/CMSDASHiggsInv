@@ -10,11 +10,11 @@ USERINCLUDES += -Iinterface/
 USERINCLUDES += -isystem $(BOOSTSYS)/include/
 
 # Define libraries to link
-USERLIBS += $(shell root-config --glibs)
-USERLIBS += -L$(BOOSTSYS)/lib/ -lboost_regex -lboost_program_options -lboost_filesystem
+USERLIBS += $(shell root-config --glibs) -lTMVA
+#USERLIBS += -L$(BOOSTSYS)/lib/ -lboost_regex -lboost_program_options -lboost_filesyestem 
 
 #CXXFLAGS = -Wall -W -Wno-unused-function -Wno-parentheses -Wno-char-subscripts -Wno-unused-parameter -O2 
-CXXFLAGS = -Wl,--no-as-needed $(shell root-config --glibs) -Wall -W -O2 -std=c++0x # -std=c++11 
+CXXFLAGS = -Wl,--no-as-needed $(shell root-config --glibs) -Wall -W -O2 -std=c++0x  # -std=c++11 
 #CXXFLAGS = -Wall -W -O2 -std=c++11 
 LDFLAGS = -shared -Wall -W
 
