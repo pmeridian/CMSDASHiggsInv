@@ -97,6 +97,11 @@ int main( int argc, char** argv )
 
   unsigned nPass = 0;
 
+  //Add the normalisation factor
+  double lumiData = 10000;//in pb-1
+  float weight = getNormalisationFactor(lumiData,fileName);
+  outTree->Branch("weight",&weight);
+
   for (unsigned ievt(0); ievt<nEvts; ++ievt){//loop on entries
     if (debug) std::cout << "... Processing entry: " << ievt << std::endl;
     else if (ievt%1000 == 0) std::cout << "... Processing entry: " << ievt << std::endl;
