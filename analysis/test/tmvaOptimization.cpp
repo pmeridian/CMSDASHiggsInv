@@ -134,9 +134,10 @@ int main(int argc, char* argv[]) {
    // Apply additional cuts on the signal and background samples (can be different)
    TCut mycuts;
    TCut mycutb;
-   
-   mycuts = "passtrigger==1 && nvetomuons==0 && nvetoelectrons==0 && metnomuons>140 && abs(jet1_eta)<4.7 && abs(jet2_eta)<4.7 && dijet_M>0 && jet1_eta*jet2_eta<0"; 
-   mycutb = "passtrigger==1 && nvetomuons==0 && nvetoelectrons==0 && metnomuons>140 && abs(jet1_eta)<4.7 && abs(jet2_eta)<4.7 && dijet_M>0 && jet1_eta*jet2_eta<0 && metno";
+
+   //Preselection to get rid of QCD  
+   mycuts = "passtrigger==1 && nvetomuons==0 && nvetoelectrons==0 && metnomuons>140 && abs(jet1_eta)<4.7 && abs(jet2_eta)<4.7 && dijet_M>700 && jet1_eta*jet2_eta<0 && metnomu_significance>4 && alljetsmetnomu_mindphi>2 && jet1_pt>50 && jet2_pt>40"; 
+   mycutb = "passtrigger==1 && nvetomuons==0 && nvetoelectrons==0 && metnomuons>140 && abs(jet1_eta)<4.7 && abs(jet2_eta)<4.7 && dijet_M>700 && jet1_eta*jet2_eta<0 && metnomu_significance>4 && alljetsmetnomu_mindphi>2 && jet1_pt>50 && jet2_pt>40";
  
    factory->PrepareTrainingAndTestTree( mycuts, mycutb,
                                         "nTrain_Signal=0:nTrain_Background=0:SplitMode=Random:NormMode=NumEvents:!V" );
@@ -145,7 +146,7 @@ int main(int argc, char* argv[]) {
    // factory->BookMethod( TMVA::Types::kCuts, "Cuts",
    // 			//			"!H:!V:FitMethod=MC:EffSel:SampleSize=200000:VarProp[0]=FSmart:VarProp[1]=FSmart:VarProp[2]=FSmart:VarProp[3]=FSmart:VarProp[4]=FSmart:VarProp[5]=FSmart" );
     factory->BookMethod( TMVA::Types::kCuts, "CutsGA",
-    			"H:!V:FitMethod=GA:EffSel:Steps=30:Cycles=3:PopSize=400:SC_steps=10:SC_rate=5:SC_factor=0.95:VarProp[0]=FSmart:VarProp[1]=FSmart:VarProp[2]=FSmart:VarProp[3]=FSmart:VarProp[4]=FSmart:VarProp[5]=FSmart" );
+    			"H:!V:FitMethod=GA:EffSel:Steps=30:Cycles=3:PopSize=400:SC_steps=10:SC_rate=5:SC_factor=0.95:VarProp[0]=FSmart:VarProp[1]=FSmart:VarProp[2]=FSmart:VarProp[3]=FSmart" );
    // factory->BookMethod( TMVA::Types::kCuts, "CutsSA",
    // 			"!H:!V:FitMethod=SA:EffSel:MaxCalls=150000:KernelTemp=IncAdaptive:InitialTemp=1e+6:MinTemp=1e-6:Eps=1e-10:UseDefaultScale" );
    //factory->BookMethod( TMVA::Types::kBDT, "BDT","!H:!V:NTrees=1000:MinNodeSize=2.5%:MaxDepth=3:BoostType=AdaBoost:AdaBoostBeta=0.5:SeparationType=GiniIndex:nCuts=20:PruneMethod=NoPruning");
