@@ -616,6 +616,9 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
     }
   }
 
+  Candidate::LorentzVector metvec = met.p4();
+  Candidate::LorentzVector metnomuvec = metnomuons;
+
   met_ = met.pt();
   met_x_ = metvec.Px();
   met_y_ = metvec.Py();
@@ -661,8 +664,6 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
     Candidate::LorentzVector jet1vec = jet1->p4();
     Candidate::LorentzVector jet2vec = jet2->p4();
     Candidate::LorentzVector dijetvec = jet1vec+jet2vec;
-    Candidate::LorentzVector metvec = met.p4();
-    Candidate::LorentzVector metnomuvec = metnomuons;
 
     // weight_nolep_ = wt;
     // total_weight_lepveto_ =wt*vetowt;
