@@ -506,12 +506,15 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
   for (unsigned int i = 0, n = triggerBits->size(); i < n; ++i) 
     {
       if (names.triggerName(i).find("HLT_PFMET170_NoiseCleaned") != names.triggerName(i).npos )
-	if (triggerBits->accept(i)) 
-	  passtrigger_ = 1;
+	if (triggerBits->accept(i))
+	  { 
+	    passtrigger_ = 1;
+	    break;
+	  }
     }
       
-  if (hltSkim_)
-    if (passtrigger_<0.5)
+  if (hltSkim_==1)
+    if (passtrigger_!=1)
       return;
 
   nvetomuons_=vetomuons.size();
@@ -613,13 +616,48 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
     }
   }
 
+  met_ = met.pt();
+  met_x_ = metvec.Px();
+  met_y_ = metvec.Py();
+#ifdef DEBUG
+  printf("MET SIG %3.1f\n",met.mEtSig());
+#endif
+  met_significance_ = met.mEtSig();
+  sumet_ = met.sumEt();
+  if(l1MetExtra->size()==1){
+    l1met_ = (*l1MetExtra)[0].energy();
+#ifdef DEBUG
+    printf("L1MET %4.1f\n",l1met_); 
+#endif
+  }
+
+  metnomuons_ = metnomuons.pt();
+  metnomu_x_ = metnomuvec.Px();
+  metnomu_y_ = metnomuvec.Py();
+  metnomu_significance_ = met_significance_/met_*metnomuons_;
+  double ht =0;
+  double ht30 =0;
+  Candidate::LorentzVector mhtVec(0,0,0,0);
+  for(unsigned i =0; i<selJets.size();++i){
+    ht+=selJets[i]->p4().Et();
+    if(selJets[i]->pt()>30)	ht30+=selJets[i]->p4().Et();
+    mhtVec += selJets[i]->p4();
+  }
+  Candidate::LorentzVector unclVec = mhtVec + metvec;
+  
+  ht_ = ht;
+  ht30_=ht30;
+  mht_ = mhtVec.Et();
+  sqrt_ht_ = sqrt(ht);
+  unclustered_et_ = unclVec.Et();
+  
   if (dijet_vec.size() != 0) {
       
     std::pair<const pat::Jet*,const pat::Jet*> dijet = dijet_vec.at(0);
-
+    
     pat::Jet const* jet1 = dijet.first;
     pat::Jet const* jet2 = dijet.second;
-
+    
     Candidate::LorentzVector jet1vec = jet1->p4();
     Candidate::LorentzVector jet2vec = jet2->p4();
     Candidate::LorentzVector dijetvec = jet1vec+jet2vec;
@@ -629,7 +667,7 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
     // weight_nolep_ = wt;
     // total_weight_lepveto_ =wt*vetowt;
     // total_weight_leptight_=wt*tightwt;
-      
+    
     jet1_pt_ = jet1->pt();
     jet2_pt_ = jet2->pt();
     jet1_E_ = jet1vec.E();
@@ -644,41 +682,7 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
     dijet_deta_ = fabs(jet1->eta() - jet2->eta());
     dijet_sumeta_ = jet1->eta() + jet2->eta();
     dijet_dphi_ = fabs(ROOT::Math::VectorUtil::DeltaPhi(jet1vec,jet2vec));
-    met_ = met.pt();
-    met_x_ = metvec.Px();
-    met_y_ = metvec.Py();
-#ifdef DEBUG
-    printf("MET SIG %3.1f\n",met.mEtSig());
-#endif
-    met_significance_ = met.mEtSig();
-    sumet_ = met.sumEt();
-    if(l1MetExtra->size()==1){
-      l1met_ = (*l1MetExtra)[0].energy();
-#ifdef DEBUG
-      printf("L1MET %4.1f\n",l1met_); 
-#endif
-    }
 
-    metnomuons_ = metnomuons.pt();
-    metnomu_x_ = metnomuvec.Px();
-    metnomu_y_ = metnomuvec.Py();
-    metnomu_significance_ = met_significance_/met_*metnomuons_;
-
-    double ht =0;
-    double ht30 =0;
-    Candidate::LorentzVector mhtVec(0,0,0,0);
-    for(unsigned i =0; i<selJets.size();++i){
-      ht+=selJets[i]->p4().Et();
-      if(selJets[i]->pt()>30)	ht30+=selJets[i]->p4().Et();
-      mhtVec += selJets[i]->p4();
-    }
-    Candidate::LorentzVector unclVec = mhtVec + metvec;
-
-    ht_ = ht;
-    ht30_=ht30;
-    mht_ = mhtVec.Et();
-    sqrt_ht_ = sqrt(ht);
-    unclustered_et_ = unclVec.Et();
 
     double dphi1 = fabs(ROOT::Math::VectorUtil::DeltaPhi(jet1vec,metvec));
     double dphi2 = fabs(ROOT::Math::VectorUtil::DeltaPhi(jet2vec,metvec));
