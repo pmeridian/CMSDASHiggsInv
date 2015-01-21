@@ -102,20 +102,6 @@ int main(int argc, char* argv[]) {
    signals.push_back("VBF_HToInv_M-125_13TeV_powheg-pythia6");
    double lumiData = 10000;//in pb-1
 
-   for (int i=0; i<backgrounds.size(); i++){
-     float weight = getNormalisationFactor(lumiData,backgrounds[i]);
-
-     TFile* f=TFile::Open(Form("%s/%s.root",inPath.c_str(),backgrounds[i].c_str()));
-     TTree* bkg=(TTree*) f->Get("lightTree/LightTree");
-     if (!bkg)
-       {
-	 std::cout << "====> ERROR: Bkg tree " << backgrounds[i] << " cannot be found" << std::endl;
-	 continue;
-       }
-	 
-     factory->AddBackgroundTree    ( bkg, weight);
-   } 
-
    for (int i=0; i<signals.size(); i++){
      float weight = getNormalisationFactor(lumiData,signals[i]);
 
@@ -130,6 +116,21 @@ int main(int argc, char* argv[]) {
      factory->AddSignalTree    ( sig, weight);
    } 
 
+   for (int i=0; i<backgrounds.size(); i++){
+     float weight = getNormalisationFactor(lumiData,backgrounds[i]);
+
+     TFile* f=TFile::Open(Form("%s/%s.root",inPath.c_str(),backgrounds[i].c_str()));
+     TTree* bkg=(TTree*) f->Get("lightTree/LightTree");
+     if (!bkg)
+       {
+	 std::cout << "====> ERROR: Bkg tree " << backgrounds[i] << " cannot be found" << std::endl;
+	 continue;
+       }
+	 
+     factory->AddBackgroundTree    ( bkg, weight);
+   } 
+
+
    // Apply additional cuts on the signal and background samples (can be different)
    TCut mycuts;
    TCut mycutb;
@@ -141,11 +142,11 @@ int main(int argc, char* argv[]) {
                                         "nTrain_Signal=0:nTrain_Background=0:SplitMode=Random:NormMode=NumEvents:!V" );
 
    // ---- Book MVA methods
-   // factory->BookMethod( TMVA::Types::kCuts, "Cuts",
-   // 			  "!H:!V:FitMethod=MC:EffSel:SampleSize=200000:VarProp=FSmart" );
-   // factory->BookMethod( TMVA::Types::kCuts, "CutsSA",
-   // 			"!H:!V:FitMethod=SA:EffSel:MaxCalls=150000:KernelTemp=IncAdaptive:InitialTemp=1e+6:MinTemp=1e-6:Eps=1e-10:UseDefaultScale" );
-   factory->BookMethod( TMVA::Types::kBDT, "BDT","!H:!V:NTrees=1000:MinNodeSize=2.5%:MaxDepth=3:BoostType=AdaBoost:AdaBoostBeta=0.5:SeparationType=GiniIndex:nCuts=20:PruneMethod=NoPruning");
+   factory->BookMethod( TMVA::Types::kCuts, "Cuts",
+			"!H:!V:FitMethod=MC:EffSel:SampleSize=200000:VarProp=FSmart" );
+    factory->BookMethod( TMVA::Types::kCuts, "CutsSA",
+    			"!H:!V:FitMethod=SA:EffSel:MaxCalls=150000:KernelTemp=IncAdaptive:InitialTemp=1e+6:MinTemp=1e-6:Eps=1e-10:UseDefaultScale" );
+   //factory->BookMethod( TMVA::Types::kBDT, "BDT","!H:!V:NTrees=1000:MinNodeSize=2.5%:MaxDepth=3:BoostType=AdaBoost:AdaBoostBeta=0.5:SeparationType=GiniIndex:nCuts=20:PruneMethod=NoPruning");
 
    // ---- Now you can tell the factory to train, test, and evaluate the MVAs
    // Train MVAs using the set of training events
