@@ -11,11 +11,20 @@ options.register ('hltSkim',
                   VarParsing.VarParsing.varType.int,          # string, int, or float
                   "skim on hlt value")
 
+options.register ('l1Skim',
+                  0, # default value
+                  VarParsing.VarParsing.multiplicity.singleton, # singleton or list
+                  VarParsing.VarParsing.varType.int,          # string, int, or float
+                  "skim on l1met value")
+
 options.parseArguments()
 hltSkim      = options.hltSkim
+l1Skim      = options.l1Skim
 
 if (hltSkim == 1):
     print "==> HLT Skimming: enabled"
+if (l1Skim == 1):
+    print "==> L1 Skimming: enabled"
 process.load("FWCore.MessageService.MessageLogger_cfi")
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(10000) )
 
@@ -42,7 +51,8 @@ process.lightTree = cms.EDAnalyzer("LightTreeProducer",
                                    objects = cms.InputTag("selectedPatTrigger"),
                                    pruned = cms.InputTag("prunedGenParticles"),
                                    l1met = cms.InputTag("l1extraParticles","MET"),
-                                   hltSkimming = cms.int32(hltSkim)
+                                   hltSkimming = cms.int32(hltSkim),
+                                   l1Skimming = cms.int32(l1Skim)
 )
 
 

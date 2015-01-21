@@ -79,6 +79,11 @@ LightTreeProducer::LightTreeProducer(const edm::ParameterSet& iConfig):
   l1MetToken_(consumes<std::vector<l1extra::L1EtMissParticle>>(iConfig.getParameter<edm::InputTag>("l1met")))
 { 
   hltSkim_ =iConfig.getParameter<int>("hltSkimming");
+  if (hltSkim_==1)
+    std::cout << "===> HLT Skim enabled" << std::endl;
+  l1Skim_ =iConfig.getParameter<int>("l1Skimming");
+  if (l1Skim_==1)
+    std::cout << "===> L1 Skim enabled" << std::endl;
 
   outputTree_ = 0;
 
@@ -440,7 +445,7 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
     }
     BOOST_FOREACH(const pat::Tau* tau, seltaus) {
       if ( deltaR(j.p4(), tau->p4()) < 0.5) 
-	eleOverlap=true;
+	tauOverlap=true;
     }
 
     if (muOverlap || eleOverlap || tauOverlap)
@@ -468,6 +473,16 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
 
   edm::Handle<std::vector<l1extra::L1EtMissParticle>> l1MetExtra;
   iEvent.getByToken(l1MetToken_, l1MetExtra);
+  if(l1MetExtra->size()==1){
+    l1met_ = (*l1MetExtra)[0].energy();
+#ifdef DEBUG
+    printf("L1MET %4.1f\n",l1met_); 
+#endif
+  }
+
+  if (l1Skim_==1)
+    if (l1met_<60)
+      return;
 
   //Sort objects by Pt
   std::sort(vetomuons.begin(),vetomuons.end(),RefGreaterByPt<pat::Muon>());
@@ -512,6 +527,7 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
 	    break;
 	  }
     }
+
       
   if (hltSkim_==1)
     if (passtrigger_!=1)
@@ -627,12 +643,6 @@ LightTreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSet
 #endif
   met_significance_ = met.mEtSig();
   sumet_ = met.sumEt();
-  if(l1MetExtra->size()==1){
-    l1met_ = (*l1MetExtra)[0].energy();
-#ifdef DEBUG
-    printf("L1MET %4.1f\n",l1met_); 
-#endif
-  }
 
   metnomuons_ = metnomuons.pt();
   metnomu_x_ = metnomuvec.Px();

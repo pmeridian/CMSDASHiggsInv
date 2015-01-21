@@ -77,8 +77,8 @@ int main(int argc, char* argv[]) {
    // note that you may also use variable expressions, such as: "3*var1/var2*abs(var3)"
    // [all types of expressions that can also be parsed by TTree::Draw( "expression" )]
    
-   factory->AddVariable("jet1_pt","jet1_pt","", 'D');	
-   factory->AddVariable("jet2_pt","jet2_pt","", 'D');
+   // factory->AddVariable("jet1_pt","jet1_pt","", 'D');	
+   // factory->AddVariable("jet2_pt","jet2_pt","", 'D');
    factory->AddVariable("dijet_M","dijet_M","", 'D');
    factory->AddVariable("dijet_deta","dijet_deta","", 'D');
    factory->AddVariable("metnomu_significance","metnomu_significance","",'D');
@@ -135,8 +135,8 @@ int main(int argc, char* argv[]) {
    TCut mycuts;
    TCut mycutb;
    
-   mycuts = "passtrigger==1 && nvetomuons==0 && nvetoelectrons==0 && ntaus==0 && metnomuons>90 && abs(jet1_eta)<4.7 && abs(jet2_eta)<4.7 && dijet_M>0 && jet1_eta*jet2_eta<0"; 
-   mycutb = "passtrigger==1 && nvetomuons==0 && nvetoelectrons==0 && ntaus==0 && metnomuons>90 && abs(jet1_eta)<4.7 && abs(jet2_eta)<4.7 && dijet_M>0 && jet1_eta*jet2_eta<0";
+   mycuts = "passtrigger==1 && nvetomuons==0 && nvetoelectrons==0 && metnomuons>140 && abs(jet1_eta)<4.7 && abs(jet2_eta)<4.7 && dijet_M>0 && jet1_eta*jet2_eta<0"; 
+   mycutb = "passtrigger==1 && nvetomuons==0 && nvetoelectrons==0 && metnomuons>140 && abs(jet1_eta)<4.7 && abs(jet2_eta)<4.7 && dijet_M>0 && jet1_eta*jet2_eta<0 && metno";
  
    factory->PrepareTrainingAndTestTree( mycuts, mycutb,
                                         "nTrain_Signal=0:nTrain_Background=0:SplitMode=Random:NormMode=NumEvents:!V" );

@@ -44,6 +44,7 @@ class LightTreeProducer : public edm::EDAnalyzer
       explicit LightTreeProducer(const edm::ParameterSet&);
       ~LightTreeProducer();
       int hltSkim_;
+      int l1Skim_;
 
    private:
       
