@@ -1,4 +1,13 @@
+#ifndef _utilities_hh
+#define _utilities_hh
+
 #include <string>
+#include <cassert>
+#include <cmath>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+
 #include "TFile.h"
 #include "SimpleParamParser.h"
 
@@ -37,3 +46,6 @@ double getNormalisationFactor(const double lumi, std::string dataset){
   std::cout<<"-- dataset " << dataset << ", LUMIXSWEIGHT is: "<<lumixsweight<<std::endl;
   return lumixsweight;
 };
+
+
+#endif//_utilities_h

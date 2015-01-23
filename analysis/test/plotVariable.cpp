@@ -33,11 +33,12 @@ enum SELECTION{
 int main( int argc, char** argv )
 {//main
 
-  if (argc<7) {
+  if (argc<8) {
     std::cout << " Usage: " << argv[0] << " "
 	      << "<variable> <hist title> "
 	      << "<nbin> <binmin> <binmax> "
 	      << "<selection: 1=signal, 2=mumu, 3=lnu, 4=top>"
+	      << "<dology> "
 	      << std::endl;
     return 1;
   }
@@ -48,6 +49,7 @@ int main( int argc, char** argv )
   double xmin  = atof(argv[4]);
   double xmax = atof(argv[5]);
   SELECTION sel = SELECTION(atoi(argv[6]));
+  bool dology = atoi(argv[7]);;
 
   //std::string path = "/data/shared/meridian/Long_Exercise_Hinvisible/Skims/";
   std::string path = "./skims/";
@@ -55,7 +57,6 @@ int main( int argc, char** argv )
 
   double lumiData = 10000;//in pb-1
 
-  bool dology = false;
 
   const unsigned nCat = 4;
   std::string bkgcat[nCat] = {"Top","VV","W+jets","Z+jets"};
@@ -203,11 +204,20 @@ int main( int argc, char** argv )
   sprintf(buf,"#sqrt{s}=13 TeV, L=%3.0f fb^{-1}",lumiData/1000.);
   lat.DrawLatexNDC(0.15,0.85,buf);
 
+  if (sel == SELECTION::SIGNAL)
+    lat.DrawLatexNDC(0.15,0.75,"Veto e + veto #mu signal region");
+  if (sel == SELECTION::MuMu)
+    lat.DrawLatexNDC(0.15,0.75,"#mu+#mu Z control region");
+  if (sel == SELECTION::LNu)
+    lat.DrawLatexNDC(0.15,0.75,"(e,#mu,#tau) W control region");
+  if (sel == SELECTION::Top)
+    lat.DrawLatexNDC(0.15,0.75,"e+#mu top control region");
+
   std::ostringstream lsave;
   lsave.str("");
   lsave << "PLOTS/" << varName;
   if (dology) lsave << "_log";
-  lsave << ".pdf";
+  lsave << ".png";
   myc->Print(lsave.str().c_str());
 
   return 0;
