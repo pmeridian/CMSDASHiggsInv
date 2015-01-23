@@ -189,9 +189,11 @@ int main( int argc, char** argv )
     bkg[newid]->Draw(iC==0? "hist" : "histsame");
     leg->AddEntry(bkg[newid],bkgcat[newid].c_str(),"F");
   }
-  hist[nMC]->SetLineWidth(2);
-  hist[nMC]->Draw("histsame");
-  leg->AddEntry(hist[nMC],"VBF H, m_{H}=125 GeV","F");
+  if (sel == SELECTION::SIGNAL){
+    hist[nMC]->SetLineWidth(2);
+    hist[nMC]->Draw("histsame");
+    leg->AddEntry(hist[nMC],"VBF H, m_{H}=125 GeV","L");
+  }
   leg->Draw("same");
   myc->Update();
 
