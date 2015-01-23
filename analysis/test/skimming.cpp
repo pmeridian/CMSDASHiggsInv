@@ -111,8 +111,8 @@ int main( int argc, char** argv )
     if (debug) std::cout << " -- Mjj = " << reader.dijet_M_ << std::endl;
 
     //apply selection
-    bool jetmetdphicut=reader.alljetsmetnomu_mindphi_>2.3;
-    bool basesel= reader.jet1_eta_*reader.jet2_eta_<0 && fabs(reader.jet1_eta_<4.7) && fabs(reader.jet2_eta_<4.7) && reader.dijet_M_>=1200 && reader.jet1_pt_>50 && reader.dijet_deta_>3.6 && reader.jet2_pt_>45 && reader.metnomuons_>90 && reader.metnomu_significance_>4.0;
+    bool jetmetdphicut=reader.alljetsmetnomu_mindphi_>2.0;
+    bool basesel= reader.jet1_eta_*reader.jet2_eta_<0 && fabs(reader.jet1_eta_<4.7) && fabs(reader.jet2_eta_<4.7) && reader.dijet_M_>=700 && reader.jet1_pt_>50 && reader.dijet_deta_>3.6 && reader.jet2_pt_>40 && reader.metnomuons_>140 && reader.metnomu_significance_>4.0;
     bool pass = jetmetdphicut&&basesel;
 
     //fill output tree
